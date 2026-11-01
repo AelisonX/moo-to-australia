@@ -1,0 +1,19 @@
+{
+  "name": "moo-to-australia",
+  "version": "0.1.0",
+  "description": "One fart. One giant leap Down Under. A browser game about launching a cow to Australia with honest (simplified) orbital physics.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "validate": "esbuild tests/validate.ts --bundle --platform=node --format=esm --outfile=build/validate.mjs --log-level=warning && node build/validate.mjs build/validation-report.txt",
+    "serve": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
