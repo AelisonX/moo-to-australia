@@ -62,7 +62,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
 .note{font-size:11.5px;color:var(--lav);margin-top:10px;line-height:1.35}
 .city{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:var(--bg);border:2px solid var(--ink);border-radius:16px;padding:10px 14px;margin-bottom:8px;min-height:56px}
 .city b{font-size:18px}.city span{display:block;font-size:12px;color:var(--lav)}
-.city .n{font-size:12px;color:var(--yellow)}
+.city .n{font-size:12px;color:var(--yellow);display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.city .n span{display:inline;color:var(--lav)}.city .n .ok{color:var(--mint);font-size:20px;font-weight:700}.city .n .st{color:var(--yellow)}.city.cur{border-color:var(--pink)}.lhead{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--lav);margin:12px 2px 6px}
 .card p,.card li{font-size:14px;line-height:1.4}
 .card ul{padding-left:18px;margin:6px 0}
 #loading{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--pink);font-weight:600}
@@ -77,8 +77,18 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
 <body>
 <canvas id="c"></canvas>
 <div id="loading">Warming up the cow…</div>
+<script>
+(function(){
+  function show(msg){var l=document.getElementById("loading");if(l){l.style.cssText+=";flex-direction:column;gap:10px;padding:24px;text-align:center;font-size:16px";l.innerHTML="<div>Moo. Something went wrong.</div><div style='font-size:13px;color:#C9C2EA;max-width:420px'>"+String(msg).replace(/</g,"&lt;")+"</div><button onclick='location.reload()' style='margin-top:8px;padding:10px 18px;border-radius:14px;background:#F4A3B8;color:#3a2a30;font-weight:700;border:2px solid #3a2a30'>Reload</button>";}}
+  window.addEventListener("error",function(e){show((e.message||"Error")+(e.filename?" @ "+e.filename.split("/").pop()+":"+e.lineno:""));});
+  window.addEventListener("unhandledrejection",function(e){show("Error: "+(e.reason&&e.reason.message||e.reason));});
+  setTimeout(function(){var l=document.getElementById("loading");if(l&&l.textContent.indexOf("Warming")===0)l.textContent="Still warming up… (slow network? the game is ~2 MB)";},15000);
+  try{var c=document.createElement("canvas");if(!(c.getContext("webgl2")||c.getContext("webgl")))show("This browser has WebGL turned off, and the globe needs it.");}catch(e){}
+})();
+</script>
+<script nomodule>document.getElementById("loading").textContent="This browser is too old for the game (needs ES modules).";</script>
 <div id="top">
-  <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · v0.1</small></div>
+  <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · World Tour</small></div>
   <button class="chip" id="cityBtn">From: Taipei ▾</button>
   <button class="chip" id="viewBtn">🌏</button>
   <button class="chip" id="infoBtn">?</button>
@@ -109,18 +119,18 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
 </div></div>
 
 <div class="modal" id="resM"><div class="card" id="resC"></div></div>
-<div class="modal" id="cityM"><div class="card"><h2>Launch from…</h2><div class="tagline">Pick a farm. Same cow everywhere.</div><div id="cityList"></div></div></div>
+<div class="modal" id="cityM"><div class="card"><h2>Pick a route</h2><div class="tagline">Same cow, same fart, five countries.</div><div id="cityList"></div></div></div>
 <div class="modal" id="infoM"><div class="card">
   <h2>How this works</h2>
   <div class="tagline">Cow fiction, honest physics.</div>
   <ul>
-    <li><b>Goal:</b> land anywhere on Australian land: mainland, Tasmania, islands and external territories (Christmas, Cocos, Norfolk, Heard &amp; McDonald, Lord Howe, Macquarie…). Sea doesn't count.</li>
+    <li><b>World Tour:</b> five routes (Taiwan → Australia → … → home to Taiwan). Land anywhere on the target country's land to clear a level. Water doesn't count.</li><li><b>Australia</b> includes Tasmania, the islands and external territories (Christmas, Cocos, Norfolk, Heard &amp; McDonald, Lord Howe, Macquarie…). France means mainland France + Corsica; New Zealand means the main islands.</li><li>Landing celebrations (farm, vineyard, traffic jam) are cartoon endings, not the real spot you hit.</li>
     <li><b>Controls:</b> direction (compass, 0° = north), angle above the horizon, fart power (km/s, relative to the ground). No aim line: learn from your trails.</li>
     <li><b>Physics (simplified):</b> round Earth, gravity toward the centre (weaker with distance), Earth spinning the whole time, <b>no air</b>. Your cow already moves with the spinning ground before it farts, so "jump and wait for Australia" does not work: jump straight up and you land a little <i>west</i>.</li>
     <li>One fart, no second burn: a cow can't accidentally become a satellite. She either comes back down or escapes Earth (that counts as a loss).</li>
     <li><b>Fiction:</b> super-fart, heat-proof and crash-proof cow. Don't try this with a real cow.</li>
     <li>Playback is sped up (shown as ×). "Sim time" is how long the flight lasts in the model; "watched" is real time.</li>
-    <li>The Australian Antarctic claim does <i>not</i> count in this version (pending decision).</li>
+    <li>The Australian Antarctic claim does <i>not</i> count. Technically.</li>
   </ul>
   <div class="note">v0.1 · Sister game to MOO TO THE MOON. Map data: Natural Earth (public domain). Rendering: three.js (MIT). Font: Fredoka (OFL).</div>
   <div class="btns" style="margin-top:12px"><button class="b-pink" id="infoClose">Got it</button></div>

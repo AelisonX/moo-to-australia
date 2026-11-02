@@ -1,7 +1,7 @@
 // Validation suite. Run: node build/validate.mjs  (bundled by esbuild)
 import { simulate, initialState, MU, R_EARTH, OMEGA, dot, norm, cross, ecefToLl, llToEcef, eciToEcef, ecefToEci, gcDist, Launch, V3, sub } from "../src/physics";
 import { keplerLanding } from "../src/kepler";
-import { australianRegionAt, countryAt, distanceToAustralia, inAntarcticClaim, AU_REGIONS } from "../src/geo";
+import { australianRegionAt, countryAt, distanceToAustralia, inAntarcticClaim, AU_REGIONS, TARGETS, targetRegionAt } from "../src/geo";
 import { CITIES } from "../src/cities";
 
 let pass = 0, fail = 0;
@@ -143,12 +143,19 @@ const fmt = (x: number, d = 3) => x.toExponential(d);
   check("Distance to nearest Australian land from Auckland is plausible", dNZ > 700 && dNZ < 1200, `${dNZ.toFixed(0)} km (Norfolk Island is the nearest Australian land)`);
 }
 
+{
+  const T2: [string, keyof typeof TARGETS, number, number, boolean][] = [["Paris", "FR", 48.86, 2.35, true], ["Corsica", "FR", 42.15, 9.1, true], ["French Guiana (not metro France)", "FR", 4.9, -52.3, false],
+    ["Bern", "CH", 46.95, 7.45, true], ["Lake Geneva (water)", "CH", 46.45, 6.55, false], ["Taipei", "TW", 25.03, 121.56, true], ["Kaohsiung", "TW", 22.63, 120.30, true], ["Taiwan Strait (sea)", "TW", 24.3, 119.6, false],
+    ["Auckland", "NZ", -36.85, 174.76, true], ["Christchurch", "NZ", -43.53, 172.64, true], ["Cook Strait (sea)", "NZ", -41.2, 174.5, false]];
+  for (const [n, k, la, lo, want] of T2) { const got = !!targetRegionAt(TARGETS[k], la, lo); check(`${TARGETS[k].name} target test: ${n}`, got === want, got ? "inside" : "outside"); }
+}
+
 // ---------- 7. Playability sweep (analytic engine, then numeric confirmation) ----------
 const sweep: string[] = [];
 {
   const HOP = 2 * 3600; // flights up to 2 h count as "normal hops"; longer = high "lob" shots
   for (const c of CITIES) {
-    const t0 = Date.now();
+    const t0 = Date.now(); const TG = TARGETS[c.target]; const MAIN = c.target === "AU" ? "Mainland Australia" : TG.name;
     let total = 0, okHop = 0, okLob = 0;
     let best: { L: Launch; tf: number } | null = null, fastest: { L: Launch; tf: number } | null = null;
     const byRegion: Record<string, number> = {};
@@ -157,28 +164,28 @@ const sweep: string[] = [];
       const L: Launch = { lat: c.lat, lon: c.lon, azimuth: az, elevation: el, dv };
       const k = keplerLanding(L);
       if (k.escaped || !k.landing) continue;
-      const reg = australianRegionAt(k.landing.lat, k.landing.lon);
+      const reg = targetRegionAt(TG, k.landing.lat, k.landing.lon);
       if (!reg) continue;
       byRegion[reg] = (byRegion[reg] ?? 0) + 1;
       if (k.flightTime! <= HOP) {
         okHop++;
-        if (reg === "Mainland Australia" && (!best || Math.abs(el - 45) < Math.abs(best.L.elevation - 45))) best = { L, tf: k.flightTime! };
+        if (reg === MAIN && (!best || Math.abs(el - 45) < Math.abs(best.L.elevation - 45))) best = { L, tf: k.flightTime! };
         if (!fastest || k.flightTime! < fastest.tf) fastest = { L, tf: k.flightTime! };
       } else okLob++;
     }
     if (!best) { check(`${c.name}: a normal-hop solution exists`, false); continue; }
     const f = simulate(best.L);
-    const reg = f.landing ? australianRegionAt(f.landing.lat, f.landing.lon) : null;
-    check(`${c.name}: a ≤2 h solution exists and the numeric sim confirms it`, !!reg,
+    const reg = f.landing ? targetRegionAt(TG, f.landing.lat, f.landing.lon) : null;
+    check(`${c.name} → ${TG.name}: a ≤2 h solution exists and the numeric sim confirms it`, !!reg,
       `az ${best.L.azimuth}°, el ${best.L.elevation}°, ${(best.L.dv / 1000).toFixed(2)} km/s → ${reg ?? "MISS"}, ${(f.flightTime / 60).toFixed(1)} min, apex ${(f.maxAlt / 1000).toFixed(0)} km`);
     let lo = Infinity, hi = -Infinity;
     for (let dv = best.L.dv - 3000; dv <= best.L.dv + 3000; dv += 2) {
       const k = keplerLanding({ ...best.L, dv });
-      if (k.landing && !k.escaped && k.flightTime! <= HOP && australianRegionAt(k.landing.lat, k.landing.lon) === "Mainland Australia") { lo = Math.min(lo, dv); hi = Math.max(hi, dv); }
+      if (k.landing && !k.escaped && k.flightTime! <= HOP && targetRegionAt(TG, k.landing.lat, k.landing.lon) === MAIN) { lo = Math.min(lo, dv); hi = Math.max(hi, dv); }
     }
     const regs = Object.entries(byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(", ");
-    const s = `${c.name}: ${okHop + okLob}/${total} grid settings land in Australia (${(100 * (okHop + okLob) / total).toFixed(2)}%) — ${okHop} normal hops (≤2 h), ${okLob} high lobs (>2 h). ` +
-      `Example hop: az ${best.L.azimuth}°, el ${best.L.elevation}°, ${(best.L.dv / 1000).toFixed(2)} km/s, ${(best.tf / 60).toFixed(0)} min; mainland power window at that aim ≈ ${((hi - lo) / 1000).toFixed(3)} km/s wide. ` +
+    const s = `${c.name} → ${TG.name}: ${okHop + okLob}/${total} grid settings land in target (${(100 * (okHop + okLob) / total).toFixed(2)}%) — ${okHop} normal hops (≤2 h), ${okLob} high lobs (>2 h). ` +
+      `Example hop: az ${best.L.azimuth}°, el ${best.L.elevation}°, ${(best.L.dv / 1000).toFixed(2)} km/s, ${(best.tf / 60).toFixed(0)} min; main-land power window at that aim ≈ ${((hi - lo) / 1000).toFixed(3)} km/s wide. ` +
       `Fastest hop: ${(fastest!.tf / 60).toFixed(0)} min (az ${fastest!.L.azimuth}°, el ${fastest!.L.elevation}°, ${(fastest!.L.dv / 1000).toFixed(2)} km/s). By region: ${regs}. [${((Date.now() - t0) / 1000).toFixed(1)} s]`;
     sweep.push(s); console.log("  " + s);
   }

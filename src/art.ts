@@ -199,3 +199,72 @@ export function svgToCanvas(svg: string, w: number, h: number): Promise<HTMLCanv
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   });
 }
+
+// ---------------------------------------------------------------- World Tour props (shared style: 3px ink outlines, flat fills)
+const O = `stroke="${PAL.ink}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
+const svg = (vb: string, w: number, h: number, body: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${w}" height="${h}">${body}</svg>`;
+/** Same cow, other coat (friends in the welcome party). */
+export function friendCowSVG(pose: Pose, coat: string): string { return cowSVG(pose).split(PAL.spot).join(coat); }
+export function gerSVG(): string {
+  return svg("0 0 160 110", 320, 220, `<path d="M10,104 V58 Q80,36 150,58 V104 Z" fill="#FFF8F2" ${O}/>
+<path d="M4,60 Q80,0 156,60 Q80,40 4,60 Z" fill="#E9D7B8" ${O}/><path d="M66,18 h28 l-4,-10 h-20 z" fill="#D9576B" ${O}/>
+<path d="M14,74 H146 M14,88 H146" stroke="#D9576B" stroke-width="5"/><path d="M64,104 V70 h32 v34" fill="#E58AA3" ${O}/>
+<path d="M68,76 h24 M68,86 h24 M68,96 h24" stroke="#FFE07A" stroke-width="3"/>`);
+}
+export function sheepSVG(): string {
+  return svg("0 0 100 80", 200, 160, `<path d="M26,58 v16 M40,60 v16 M62,60 v16 M76,58 v16" stroke="${PAL.ink}" stroke-width="7" stroke-linecap="round"/>
+<path d="M18,40 c-8,-14 8,-26 18,-20 c4,-12 24,-12 28,0 c12,-6 26,6 18,20 c10,8 2,24 -10,22 c-6,8 -36,8 -42,0 c-14,2 -22,-14 -12,-22 z" fill="#FFFDF8" ${O}/>
+<ellipse cx="84" cy="36" rx="11" ry="13" fill="${PAL.spot}" ${O}/><circle cx="87" cy="33" r="2.5" fill="#fff"/>`);
+}
+export function windmillSVG(): string {
+  return svg("0 0 120 200", 240, 400, `<path d="M50,196 L58,70 h4 L70,196 M44,196 L60,70 L76,196 M52,150 h16 M48,176 h24 M55,110 h10" fill="none" ${O}/>
+<g transform="translate(60,60)">${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="M0,0 L-4,-40 L4,-40 Z" transform="rotate(${a})" fill="#FFF8F2" ${O}/>`).join("")}<circle r="7" fill="#D9576B" ${O}/></g>
+<path d="M66,60 h40 l6,-8 v16 l-6,-8" fill="#C9C2EA" ${O}/>`);
+}
+export function treeSVG(): string {
+  return svg("0 0 120 150", 240, 300, `<path d="M54,146 V90 h12 v56" fill="#A86B3C" ${O}/>
+<path d="M60,8 c24,0 40,16 38,34 c16,8 16,34 -4,42 c-6,14 -28,16 -34,8 c-10,8 -32,4 -34,-12 c-18,-6 -18,-32 0,-38 c-2,-18 14,-34 34,-34 z" fill="#5FB36B" ${O}/>
+<circle cx="40" cy="50" r="6" fill="#D9576B" ${O}/><circle cx="78" cy="40" r="6" fill="#D9576B" ${O}/><circle cx="70" cy="76" r="6" fill="#D9576B" ${O}/>`);
+}
+export function alpsSVG(): string {
+  return svg("0 0 400 160", 1200, 480, `<path d="M0,160 L60,60 L100,100 L170,10 L230,90 L270,50 L330,110 L370,70 L400,100 V160 Z" fill="#8E9BD6" ${O}/>
+<path d="M150,36 L170,10 L192,40 L180,34 L170,44 L160,34 Z M58,64 L60,60 L74,82 L64,76 Z M262,58 L270,50 L282,66 L272,62 Z" fill="#fff" ${O}/>
+<path d="M0,160 L40,120 L90,140 L150,110 L220,140 L290,118 L350,140 L400,124 V160 Z" fill="#5FB36B" ${O}/>`);
+}
+export function vineyardSVG(): string {
+  let rows = "";
+  for (let i = 0; i < 6; i++) { const y = 70 + i * 16; rows += `<path d="M${10 + i * 6},${y} H${390 - i * 6}" stroke="#3F7D3A" stroke-width="${8 + i}" stroke-linecap="round"/>`; for (let x = 20 + i * 6; x < 390 - i * 6; x += 26) rows += `<circle cx="${x}" cy="${y - 2}" r="${3 + i * 0.4}" fill="#7A3B8F"/>`; }
+  return svg("0 0 400 160", 1200, 480, `<path d="M0,160 V70 Q200,40 400,70 V160 Z" fill="#9BD07E" ${O}/>${rows}
+<path d="M300,60 v-26 h40 v26 M296,36 l24,-16 l24,16" fill="#FFF8F2" ${O}/>`);
+}
+export function citySVG(): string {
+  const b = [[0, 70, 50, "#C9C2EA"], [46, 40, 54, "#F4A3B8"], [96, 86, 44, "#8FD3FF"], [136, 30, 60, "#FFE07A"], [192, 64, 48, "#C9C2EA"], [236, 20, 56, "#F4A3B8"], [288, 56, 50, "#8FD3FF"], [334, 80, 66, "#FFE07A"]];
+  let s = b.map(([x, y, w, c]) => `<rect x="${x}" y="${y}" width="${w}" height="${160 - (y as number)}" fill="${c}" ${O}/>` + Array.from({ length: 6 }, (_, i) => `<rect x="${(x as number) + 8 + (i % 2) * ((w as number) / 2 - 2)}" y="${(y as number) + 10 + Math.floor(i / 2) * 22}" width="10" height="12" fill="#FFF8F2" stroke="${PAL.ink}" stroke-width="2"/>`).join("")).join("");
+  s += `<rect x="0" y="140" width="400" height="20" fill="#5B5F7A"/><path d="M10,150 h30 M70,150 h30 M130,150 h30 M190,150 h30 M250,150 h30 M310,150 h30 M370,150 h20" stroke="#FFE07A" stroke-width="3"/>`;
+  return svg("0 0 400 160", 1200, 480, s);
+}
+export function carSVG(color: string): string {
+  return svg("0 0 100 56", 200, 112, `<path d="M6,40 v-14 q0,-6 8,-6 h12 l12,-12 h30 l12,12 h8 q8,0 8,8 v12 z" fill="${color}" ${O}/>
+<path d="M42,12 h12 v10 h-22 z M60,12 h8 l10,10 h-18 z" fill="#8FD3FF" stroke="${PAL.ink}" stroke-width="2.5"/>
+<circle cx="26" cy="42" r="9" fill="${PAL.spot}" ${O}/><circle cx="76" cy="42" r="9" fill="${PAL.spot}" ${O}/>
+<path d="M70,0 l4,-0" /><text x="80" y="14" font-family="Arial" font-weight="900" font-size="14" fill="${PAL.ink}">!</text>`);
+}
+export function foodSVG(kind: string): string {
+  switch (kind) {
+    case "milkshake": return svg("0 0 80 120", 160, 240, `<path d="M58,4 L44,40" stroke="#D9576B" stroke-width="6" stroke-linecap="round"/><path d="M14,40 h52 l-8,76 h-36 z" fill="#F7B9C8" ${O}/>
+<path d="M10,40 c0,-14 14,-20 20,-12 c4,-12 22,-12 24,0 c8,-6 18,2 16,12 z" fill="#FFF8F2" ${O}/><circle cx="40" cy="18" r="6" fill="#D9576B" ${O}/><path d="M24,60 h32 M26,80 h28" stroke="#fff" stroke-width="3" opacity=".7"/>`);
+    case "cheese-picnic": return svg("0 0 140 90", 280, 180, `<path d="M4,70 L30,40 H136 L110,70 Z" fill="#fff" ${O}/>${Array.from({ length: 8 }, (_, i) => `<path d="M${30 + i * 13},40 l-${4 + i * 0},30 h7 l4,-30 z" fill="#D9576B" opacity=".75"/>`).join("")}
+<path d="M48,58 L92,30 L106,52 Z" fill="${PAL.yellow}" ${O}/><path d="M48,58 L106,52 L106,64 L48,70 Z" fill="#F2C95C" ${O}/><circle cx="74" cy="50" r="4" fill="#F2C95C"/><circle cx="88" cy="58" r="3" fill="#E2B347"/>`);
+    case "croissant": return svg("0 0 140 90", 280, 180, `<path d="M10,60 C20,20 70,10 100,30 C120,40 128,58 122,66 C108,56 92,52 70,56 C46,60 28,70 10,60 Z" fill="#E9A957" ${O}/>
+<path d="M40,30 q8,14 2,30 M66,22 q8,18 2,34 M92,30 q6,14 0,26" stroke="${PAL.ink}" stroke-width="2.5" fill="none"/>
+<path d="M78,86 L112,62 L124,80 Z" fill="${PAL.yellow}" ${O}/><circle cx="104" cy="76" r="3" fill="#E2B347"/>`);
+    case "fondue": return svg("0 0 120 120", 240, 240, `<path d="M60,4 L54,52 M78,10 L64,50" stroke="#C9C2EA" stroke-width="4" stroke-linecap="round"/><circle cx="54" cy="54" r="5" fill="${PAL.yellow}" ${O}/>
+<path d="M14,56 h92 c0,30 -16,44 -46,44 c-30,0 -46,-14 -46,-44 z" fill="#D9576B" ${O}/><path d="M18,58 c10,-8 74,-8 84,0" fill="${PAL.yellow}" ${O}/>
+<path d="M36,100 l-8,16 M84,100 l8,16 M24,116 h72" stroke="${PAL.ink}" stroke-width="4" stroke-linecap="round"/><path d="M50,112 q4,-10 0,-14 q10,6 4,14 z" fill="#FFB37A"/>`);
+    case "bubble-tea": return svg("0 0 80 120", 160, 240, `<path d="M50,0 L42,30" stroke="#D9576B" stroke-width="7" stroke-linecap="round"/><path d="M14,30 h52 l-8,84 h-36 z" fill="#E9C9A0" ${O}/>
+<path d="M12,30 h56" stroke="${PAL.ink}" stroke-width="5" stroke-linecap="round"/>${[[28, 100], [40, 104], [52, 100], [34, 92], [46, 92], [30, 82], [50, 84]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="${PAL.spot}"/>`).join("")}<path d="M22,46 v20" stroke="#fff" stroke-width="3" opacity=".7"/>`);
+    case "wine": return svg("0 0 80 120", 160, 240, `<path d="M16,8 h48 c0,34 -8,48 -24,48 c-16,0 -24,-14 -24,-48 z" fill="#fff" fill-opacity=".6" ${O}/><path d="M18,26 h44 c-2,18 -10,28 -22,28 c-12,0 -20,-10 -22,-28 z" fill="#8E2A4C"/>
+<path d="M40,56 v44 M22,112 q18,-12 36,0 z" fill="#fff" ${O}/>`);
+  }
+  return "";
+}

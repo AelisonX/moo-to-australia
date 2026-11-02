@@ -2,6 +2,7 @@
 // country lookup, distance to nearest Australian land.
 import auData from "./data/au.json";
 import worldData from "./data/world.json";
+import targetData from "./data/targets.json";
 import { gcDist, llToEcef, dot, V3 } from "./physics";
 
 type Ring = number[][]; // [lon, lat][]
@@ -38,6 +39,8 @@ export const AU_REGIONS: Region[] = (auData as any).regions.map((r: any) => ({ n
 interface Country { n: string; p: Poly[]; bb: number[][] }
 export const WORLD: Country[] = (worldData as any[]).map((c) => ({ n: c.n, p: c.p, bb: c.p.map(bboxOf) }));
 
+/** Stable target point for camera framing only (centre of mainland). */
+export const AUSTRALIA_CENTRE = { lat: -25.3, lon: 134.0 };
 export function australianRegionAt(lat: number, lon: number): string | null {
   for (const r of AU_REGIONS) for (let i = 0; i < r.polys.length; i++) if (inPoly(lon, lat, r.polys[i], r.bbox[i])) return r.name;
   return null;
@@ -85,5 +88,33 @@ export function oceanName(lat: number, lon: number): string {
   return "the Pacific Ocean";
 }
 
-/** Stable target point for camera framing only (centre of mainland). */
-export const AUSTRALIA_CENTRE = { lat: -25.3, lon: 134.0 };
+
+
+// ---------------------------------------------------------------- level targets
+export type TargetKey = "AU" | "NZ" | "FR" | "CH" | "TW";
+export interface Target { key: TargetKey; name: string; regions: Region[]; centre: { lat: number; lon: number }; pts: { v: V3; lat: number; lon: number }[] }
+function mkTarget(key: TargetKey, name: string, regions: Region[]): Target {
+  const pts: { v: V3; lat: number; lon: number }[] = [];
+  let best: Poly | null = null, bestN = 0;
+  for (const r of regions) for (const p of r.polys) { if (p[0].length > bestN) { bestN = p[0].length; best = p; } for (const [lon, lat] of p[0]) pts.push({ v: llToEcef(lat, lon, 1), lat, lon }); }
+  let x = 0, y = 0; for (const [lo, la] of best![0]) { x += lo; y += la; }
+  return { key, name, regions, centre: { lat: y / best![0].length, lon: x / best![0].length }, pts };
+}
+export const TARGETS: Record<TargetKey, Target> = {
+  AU: { ...mkTarget("AU", "Australia", AU_REGIONS), centre: AUSTRALIA_CENTRE },
+  NZ: mkTarget("NZ", "New Zealand", [{ name: "New Zealand", polys: (targetData as any).NZ.polys, bbox: (targetData as any).NZ.polys.map(bboxOf) }]),
+  FR: mkTarget("FR", "France", [{ name: "France", polys: (targetData as any).FR.polys, bbox: (targetData as any).FR.polys.map(bboxOf) }]),
+  CH: mkTarget("CH", "Switzerland", [{ name: "Switzerland", polys: (targetData as any).CH.polys, bbox: (targetData as any).CH.polys.map(bboxOf) }]),
+  TW: mkTarget("TW", "Taiwan", [{ name: "Taiwan", polys: (targetData as any).TW.polys, bbox: (targetData as any).TW.polys.map(bboxOf) }]),
+};
+/** Which region of the target (if any) contains this point. */
+export function targetRegionAt(t: Target, lat: number, lon: number): string | null {
+  for (const r of t.regions) for (let i = 0; i < r.polys.length; i++) if (inPoly(lon, lat, r.polys[i], r.bbox[i])) return r.name;
+  return null;
+}
+export function distanceToTarget(t: Target, lat: number, lon: number): number {
+  if (targetRegionAt(t, lat, lon)) return 0;
+  const q = llToEcef(lat, lon, 1); let best = -2, bi = 0;
+  for (let i = 0; i < t.pts.length; i++) { const d = dot(q, t.pts[i].v); if (d > best) { best = d; bi = i; } }
+  return gcDist(lat, lon, t.pts[bi].lat, t.pts[bi].lon);
+}

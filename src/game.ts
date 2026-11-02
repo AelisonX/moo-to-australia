@@ -3,9 +3,9 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { simulate, sampleAt, FlightResult, Launch, V3, R_EARTH, OMEGA, llToEcef, enu, ecefToLl, gcDist, bearing } from "./physics";
-import { australianRegionAt, countryAt, distanceToAustralia, inAntarcticClaim, oceanName, AU_REGIONS, WORLD, AUSTRALIA_CENTRE } from "./geo";
-import { CITIES, City } from "./cities";
-import { cowSVG, puffSVG, splashSVG, barnSVG, haySVG, signSVG, tuftSVG, svgToCanvas, Pose, PAL, POSES } from "./art";
+import { countryAt, inAntarcticClaim, oceanName, WORLD, TARGETS, targetRegionAt, distanceToTarget, Target } from "./geo";
+import { CITIES, TOUR, CLASSIC, City } from "./cities";
+import { cowSVG, puffSVG, splashSVG, barnSVG, haySVG, signSVG, tuftSVG, svgToCanvas, Pose, PAL, POSES, friendCowSVG, gerSVG, sheepSVG, windmillSVG, treeSVG, alpsSVG, vineyardSVG, citySVG, carSVG, foodSVG } from "./art";
 
 // ===================================================================================
 // Units in the scene: kilometres. Physics in metres. Scene axes: physics ECEF (x,y,z)
@@ -36,7 +36,7 @@ function earthColorAt(lat: number, lon: number): THREE.Color {
   const d = c.getContext("2d")!.getImageData(x, y, 1, 1).data;
   return new THREE.Color().setRGB(d[0] / 255, d[1] / 255, d[2] / 255, THREE.SRGBColorSpace);
 }
-function buildEarthTexture(): THREE.CanvasTexture {
+function buildEarthTexture(T: Target): THREE.CanvasTexture {
   const max = renderer.capabilities.maxTextureSize;
   const W = max >= 8192 && window.innerWidth > 900 ? 8192 : 4096, H = W / 2;
   const c = document.createElement("canvas"); c.width = W; c.height = H;
@@ -59,14 +59,14 @@ function buildEarthTexture(): THREE.CanvasTexture {
     g.fillStyle = cn.n === "Antarctica" ? "#E9EEFF" : "#8FD6A8"; g.fill("evenodd");
     g.strokeStyle = "rgba(58,42,48,.55)"; g.lineWidth = W / 4096 * 1.1; g.stroke();
   }
-  // Australia — every region in the success set, highlighted
-  for (const r of AU_REGIONS) {
+  // the current target — every region in its success set, highlighted
+  for (const r of T.regions) {
     path(r.polys as any);
     g.fillStyle = PAL.yellow; g.fill("evenodd");
     g.strokeStyle = "#E58AA3"; g.lineWidth = W / 4096 * 1.6; g.stroke();
   }
   // tiny Australian islands are sub-pixel: ring markers so a lucky hit is legible (hit test uses real polygons)
-  for (const r of AU_REGIONS) {
+  for (const r of T.key === "AU" ? T.regions : []) {
     if (r.name === "Mainland Australia" || r.name === "Tasmania" || r.name === "Other Australian islands") continue;
     const p0 = r.polys[0][0]; let x = 0, y = 0; for (const [lo, la] of p0) { x += lo; y += la; } x /= p0.length; y /= p0.length;
     g.beginPath(); g.arc(X(x), Y(y), W / 4096 * 5, 0, Math.PI * 2); g.strokeStyle = PAL.yellow; g.lineWidth = W / 4096 * 1.6; g.stroke();
@@ -161,18 +161,19 @@ const st = {
   flight: null as FlightResult | null,
   simT: 0, realT: 0, rate: 1,
   attempts: {} as Record<string, number>,
+  done: {} as Record<string, boolean>,
   history: {} as Record<string, Trail[]>,
   lastFwd: new THREE.Vector3(),
 };
 
 // persisted conveniences (one viewer's browser only)
-function save() { try { localStorage.setItem("moo2aus.v1", JSON.stringify({ city: st.city.id, settings: settings, history: serialHist(), attempts: st.attempts })); } catch { /* ignore */ } }
+function save() { try { localStorage.setItem("moo2aus.v1", JSON.stringify({ city: st.city.id, settings: settings, history: serialHist(), attempts: st.attempts, done: st.done })); } catch { /* ignore */ } }
 const settings: Record<string, { az: number; el: number; pw: number }> = {};
 function serialHist() { const o: any = {}; for (const k in st.history) o[k] = st.history[k].map((t) => ({ s: t.samples.map((v) => [+v.x.toFixed(1), +v.y.toFixed(1), +v.z.toFixed(1)]), land: t.land, outcome: t.outcome, label: t.label })); return o; }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem("moo2aus.v1") || "null"); if (!d) return;
-    Object.assign(settings, d.settings || {}); Object.assign(st.attempts, d.attempts || {});
+    Object.assign(settings, d.settings || {}); Object.assign(st.attempts, d.attempts || {}); Object.assign(st.done, d.done || {});
     for (const k in d.history || {}) st.history[k] = d.history[k].map((t: any) => ({ samples: t.s.map((a: number[]) => new THREE.Vector3(a[0], a[1], a[2])), land: t.land, outcome: t.outcome, label: t.label }));
     const c = CITIES.find((c) => c.id === d.city); if (c) st.city = c;
   } catch { /* ignore */ }
@@ -196,10 +197,12 @@ function localDir(az: number, el: number) {
   const a = az * Math.PI / 180, e = el * Math.PI / 180, F = siteFrame;
   return F.e.clone().multiplyScalar(Math.cos(e) * Math.sin(a)).addScaledVector(F.n, Math.cos(e) * Math.cos(a)).addScaledVector(F.up, Math.sin(e));
 }
+const SCENE_GROUND: Record<string, [string, string]> = { farm: ["#7CC56F", "#8FD6A8"], "tw-farm": ["#6FC26A", "#8FD6A8"], steppe: ["#B9CF6E", "#CBD98F"], "au-farm": ["#A9C56A", "#C2CF7E"], "fr-farm": ["#78C36C", "#93D3A0"], "nz-farm": ["#68BE6E", "#8FD6A8"] };
 function buildFarm(F = siteFrame, tint?: THREE.Color): THREE.Mesh {
+  const gc = SCENE_GROUND[st.city.scene] ?? SCENE_GROUND.farm;
   const RINGS = 70, SEG = 72, MAXD = 140; // km
   const pos: number[] = [], col: number[] = [], idx: number[] = [];
-  const cNear = tint ? tint.clone() : new THREE.Color("#7CC56F"), cFar = tint ? tint.clone() : new THREE.Color("#8FD6A8"), cDirt = tint ? tint.clone().offsetHSL(0, 0, -0.05) : new THREE.Color("#C9A66B");
+  const cNear = tint ? tint.clone() : new THREE.Color(gc[0]), cFar = tint ? tint.clone() : new THREE.Color(gc[1]), cDirt = tint ? tint.clone().offsetHSL(0, 0, -0.05) : new THREE.Color("#C9A66B");
   pos.push(0, 0, 0); col.push(cDirt.r, cDirt.g, cDirt.b, 1);
   for (let i = 1; i <= RINGS; i++) {
     const d = MAXD * Math.pow(i / RINGS, 2.6); const s = d / RK;
@@ -243,7 +246,7 @@ function localMapTexture(lat: number, lon: number, R_ORTHO: number, kind: string
     if (any) { g.fillStyle = fill; g.fill("evenodd"); g.strokeStyle = stroke; g.lineWidth = 3; g.stroke(); }
   };
   for (const cn of WORLD) draw(cn.p as any, cn.n === "Antarctica" ? "#E9EEFF" : "#8FD6A8", "rgba(58,42,48,.5)");
-  for (const r of AU_REGIONS) draw(r.polys as any, kind === "aus" ? "#F0B860" : PAL.yellow, "#E58AA3");
+  for (const r of TGT().regions) draw(r.polys as any, kind === "aus" ? (TGT().key === "AU" ? "#F0B860" : "#9BD88A") : PAL.yellow, kind === "aus" ? "rgba(58,42,48,.5)" : "#E58AA3");
   // cartoon ground speckles
   let sd = 11; const rr = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   g.globalAlpha = 0.18; for (let i = 0; i < 2600; i++) { const x = rr() * N, y = rr() * N, r = 1 + rr() * 3; g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = rr() > .5 ? "#ffffff" : "#3a2a30"; g.fill(); }
@@ -297,9 +300,18 @@ function setupSite() {
   for (const p of props) site.remove(p);
   props.length = 0;
   const add = (s: THREE.Sprite, e: number, n: number) => { placeLocal(s, e, n); site.add(s); props.push(s); };
-  add(sprite(texCache.barn, 0.016, 280 / 320), -38, 30);
-  add(sprite(texCache.hay, 0.0024, 0.7), 9, -7);
-  add(sprite(texCache.hay, 0.0024, 0.7), 11, -4.5);
+  const sc = c.scene;
+  if (sc === "steppe") {
+    add(sprite(texCache.ger, 0.011, 220 / 320), -30, 26); add(sprite(texCache.ger, 0.008, 220 / 320), 24, 40);
+    for (let i = 0; i < 3; i++) add(sprite(texCache.sheep, 0.0016, 0.8), 14 + i * 3, -12 + i * 2);
+  } else {
+    add(sprite(texCache.barn, 0.016, 280 / 320), -38, 30);
+    add(sprite(texCache.hay, 0.0024, 0.7), 9, -7);
+    add(sprite(texCache.hay, 0.0024, 0.7), 11, -4.5);
+    if (sc === "au-farm") add(sprite(texCache.windmill, 0.007, 400 / 240), 30, 34);
+    if (sc === "fr-farm" || sc === "tw-farm") { add(sprite(texCache.tree, 0.007, 300 / 240), 26, 30); add(sprite(texCache.tree, 0.006, 300 / 240), -12, 46); }
+    if (sc === "nz-farm") for (let i = 0; i < 5; i++) add(sprite(texCache.sheep, 0.0016, 0.8), 12 + i * 3.2, 14 - i * 4);
+  }
   let s = 3; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 70; i++) { const d = 4 + r() * 70, a = r() * Math.PI * 2; add(sprite(texCache.tuft, 0.0009 + r() * 0.0007, 80 / 120), Math.cos(a) * d, Math.sin(a) * d); }
   if (sign) site.remove(sign);
@@ -327,6 +339,16 @@ function setPoseIf(p: Pose) { if (poseNow !== p) { const flip = cow.material.map
 function setPose(p: Pose) { poseNow = p; cow.material.map = texCache["cow_" + p]; cow.material.needsUpdate = true; setCowFlip(false); }
 function setCowFlip(f: boolean) { const t = cow.material.map!; t.wrapS = THREE.RepeatWrapping; t.repeat.x = f ? -1 : 1; t.offset.x = f ? 1 : 0; }
 
+const TGT = () => TARGETS[st.city.target];
+let earthTarget = "";
+function refreshTarget() {
+  const T = TGT();
+  if (earthTarget !== T.key) {
+    const m = earth.material as THREE.MeshBasicMaterial; m.map?.dispose(); m.map = buildEarthTexture(T); m.needsUpdate = true; earthTarget = T.key;
+  }
+  (ausLabel.material as THREE.SpriteMaterial).map = labelTex(T.name.toUpperCase(), PAL.yellow);
+  ausLabel.position.copy(llT(T.centre.lat, T.centre.lon, RK + 1));
+}
 // markers
 let startLabel!: THREE.Sprite, startDot!: THREE.Sprite, ausLabel!: THREE.Sprite;
 
@@ -380,7 +402,7 @@ function cowViewPose(): Pose3 {
   return { pos, tgt, up: u.clone() };
 }
 function globePose(): Pose3 {
-  const sDir = siteFrame.up.clone(), aDir = llT(AUSTRALIA_CENTRE.lat, AUSTRALIA_CENTRE.lon).normalize();
+  const sDir = siteFrame.up.clone(), aDir = llT(TGT().centre.lat, TGT().centre.lon).normalize();
   const ang = sDir.angleTo(aDir);
   const mid = slerpDir(sDir, aDir, 0.5);
   const toAus = aDir.clone().sub(mid.clone().multiplyScalar(mid.dot(aDir))).normalize();
@@ -458,7 +480,7 @@ function flightPose(simT: number): { pose: Pose3; alt: number; cowPos: THREE.Vec
     up,
   };
   // "seat-back GPS map": oblique view over the cow toward Australia
-  const aDir = llT(AUSTRALIA_CENTRE.lat, AUSTRALIA_CENTRE.lon).normalize();
+  const aDir = llT(TGT().centre.lat, TGT().centre.lon).normalize();
   const cDir = up.clone();
   const ang = cDir.angleTo(aDir);
   const mid = slerpDir(cDir, aDir, 0.45);
@@ -481,7 +503,7 @@ const CARD = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW"
 function drawDial() {
   // a horizontal "tape" compass: drag left/right
   const W = 200, cx = 100, ppd = 1.6; let s = `<rect x="1" y="16" width="198" height="52" rx="14" fill="#30357a" stroke="${PAL.ink}" stroke-width="2.5"/>`;
-  const ausB = bearing(st.city.lat, st.city.lon, AUSTRALIA_CENTRE.lat, AUSTRALIA_CENTRE.lon);
+  const ausB = bearing(st.city.lat, st.city.lon, TGT().centre.lat, TGT().centre.lon), TK = TGT().key;
   for (let d = -70; d <= 70; d++) {
     const deg = ((Math.round(st.az) + d) % 360 + 360) % 360, x = cx + (deg - st.az + (deg - st.az > 180 ? -360 : deg - st.az < -180 ? 360 : 0)) * ppd;
     if (x < 6 || x > W - 6) continue;
@@ -490,8 +512,8 @@ function drawDial() {
     else if (deg % 5 === 0) s += `<line x1="${x}" y1="20" x2="${x}" y2="28" stroke="${PAL.lav}" stroke-width="1.2" opacity=".7"/>`;
   }
   let dA = ausB - st.az; dA = ((dA + 540) % 360) - 180; const xa = cx + dA * ppd;
-  if (xa > 10 && xa < W - 10) s += `<g transform="translate(${xa},12)"><rect x="-13" y="-10" width="26" height="15" rx="5" fill="${PAL.yellow}" stroke="${PAL.ink}" stroke-width="2"/><text y="1.5" text-anchor="middle" font-size="10" font-weight="700" fill="${PAL.ink}">AU</text></g>`;
-  else s += `<text x="${dA < 0 ? 8 : W - 8}" y="10" text-anchor="${dA < 0 ? "start" : "end"}" font-size="10" font-weight="700" fill="${PAL.yellow}">${dA < 0 ? "◀ AU" : "AU ▶"}</text>`;
+  if (xa > 10 && xa < W - 10) s += `<g transform="translate(${xa},12)"><rect x="-13" y="-10" width="26" height="15" rx="5" fill="${PAL.yellow}" stroke="${PAL.ink}" stroke-width="2"/><text y="1.5" text-anchor="middle" font-size="10" font-weight="700" fill="${PAL.ink}">${TK}</text></g>`;
+  else s += `<text x="${dA < 0 ? 8 : W - 8}" y="10" text-anchor="${dA < 0 ? "start" : "end"}" font-size="10" font-weight="700" fill="${PAL.yellow}">${dA < 0 ? "◀ " + TK : TK + " ▶"}</text>`;
   s += `<path d="M${cx - 9},74 L${cx},62 L${cx + 9},74 Z" fill="${PAL.pink}" stroke="${PAL.ink}" stroke-width="2.5"/><line x1="${cx}" y1="18" x2="${cx}" y2="64" stroke="${PAL.pink}" stroke-width="3.5"/>`;
   dial.innerHTML = s;
 }
@@ -544,22 +566,35 @@ $("clearBtn").onclick = () => { st.history[st.city.id] = []; st.attempts[st.city
 $("cityBtn").onclick = () => { if (st.mode !== "setup") return; renderCityList(); $("cityM").classList.add("on"); };
 $("cityM").addEventListener("click", (e) => { if (e.target === $("cityM")) $("cityM").classList.remove("on"); });
 $("infoM").addEventListener("click", (e) => { if (e.target === $("infoM")) $("infoM").classList.remove("on"); });
+const STARS: Record<string, number> = { t1: 1, t2: 3, t3: 3, t4: 1, t5: 2 };
 function renderCityList() {
   const L = $("cityList"); L.innerHTML = "";
-  for (const c of CITIES) {
-    const b = document.createElement("button"); b.className = "city";
-    const n = (st.history[c.id] ?? []).length;
-    b.innerHTML = `<div><b>${c.name}</b><span>${c.country} · ${c.blurb}</span></div><div class="n">${n ? n + " trail" + (n > 1 ? "s" : "") : ""}</div>`;
+  const head = (t: string) => { const h = document.createElement("div"); h.className = "lhead"; h.textContent = t; L.appendChild(h); };
+  const row = (c: City) => {
+    const b = document.createElement("button"); b.className = "city" + (c.id === st.city.id ? " cur" : "");
+    const n = (st.history[c.id] ?? []).length, T = TARGETS[c.target];
+    const title = c.kind === "tour" ? `${c.level}. ${c.country} → ${T.name}` : `${c.name} → ${T.name}`;
+    const right = (st.done[c.id] ? `<span class="ok">✓</span>` : "") + (c.kind === "tour" ? `<span class="st">${"★".repeat(STARS[c.id] ?? 1)}</span>` : "") + (n ? `<span>${n} trail${n > 1 ? "s" : ""}</span>` : "");
+    b.innerHTML = `<div><b>${title}</b><span>${c.blurb}</span></div><div class="n">${right}</div>`;
     b.onclick = () => { $("cityM").classList.remove("on"); chooseCity(c); };
     L.appendChild(b);
-  }
+  };
+  const doneN = TOUR.filter((c) => st.done[c.id]).length;
+  head(`🌍 WORLD TOUR · ${doneN}/${TOUR.length}`); TOUR.forEach(row);
+  head("🐄 CLASSIC · ANY FARM → AUSTRALIA"); CLASSIC.forEach(row);
+}
+function ballpark(c: City) {
+  const T = TARGETS[c.target], psi = gcDist(c.lat, c.lon, T.centre.lat, T.centre.lon) / R_EARTH, sn = Math.sin(psi / 2);
+  const v = Math.sqrt(3.986004418e14 / R_EARTH * 2 * sn / (1 + sn)) / 1000;
+  return Math.max(1, Math.floor(v * 2) / 2 - 0.5);
 }
 function chooseCity(c: City) {
-  st.city = c; $("cityBtn").textContent = `From: ${c.name} ▾`;
+  st.city = c; const T = TARGETS[c.target];
+  $("cityBtn").textContent = c.kind === "tour" ? `Lv${c.level}: ${c.country} → ${T.name} ▾` : `${c.name} → ${T.name} ▾`;
   const sset = settings[c.id];
   if (sset) { st.az = sset.az; st.el = sset.el; st.pw = sset.pw; }
-  else { st.az = Math.round(bearing(c.lat, c.lon, AUSTRALIA_CENTRE.lat, AUSTRALIA_CENTRE.lon)); st.el = 45; st.pw = 6; }
-  setupSite(); updateAttempt();
+  else { st.az = Math.round(bearing(c.lat, c.lon, T.centre.lat, T.centre.lon)); st.el = 45; st.pw = ballpark(c); }
+  refreshTarget(); setupSite(); updateAttempt();
   setView((st.history[c.id] ?? []).length ? "globe" : "cow", 1.4);
   save();
 }
@@ -585,7 +620,7 @@ function launchNow() {
   for (let i = 0; i < 4; i++) { const p = sprite(texCache.puff, 0.004, 180 / 256, 0.5, 0.3); placeLocal(p, (Math.random() - .5) * 2, (Math.random() - .5) * 2, 0.2); site.add(p); puffs.push({ s: p, t0: performance.now() + i * 60 }); }
   if (landPatch) { scene.remove(landPatch); landPatch.geometry.dispose(); landPatch = null; }
   if (st.flight.landing && gcDist(st.city.lat, st.city.lon, st.flight.landing.lat, st.flight.landing.lon) > 30000) {
-    const k = australianRegionAt(st.flight.landing.lat, st.flight.landing.lon) ? "aus" : "other";
+    const k = targetRegionAt(TGT(), st.flight.landing.lat, st.flight.landing.lon) ? "aus" : "other";
     landPatch = buildMapPatch(st.flight.landing.lat, st.flight.landing.lon, k); landPatch.visible = false; scene.add(landPatch);
   }
   curPts = downsampleFull(st.flight);
@@ -600,15 +635,35 @@ function downsampleFull(f: FlightResult) { return f.samples.map((s) => T(s.ecef)
 $("skip").onclick = () => { if (st.mode === "flight") { st.simT = st.flight!.flightTime; } };
 
 // ---------------------------------------------------------------- landing & results
-interface Verdict { kind: "aus" | "home" | "ocean" | "country" | "antarctic" | "escaped"; title: string; tag: string; place: string; region?: string }
+interface Verdict { kind: "aus" | "home" | "ocean" | "country" | "antarctic" | "escaped"; title: string; tag: string; place: string; region?: string; ending?: string }
+const ENDINGS: Record<string, [string, string]> = {
+  milkshake: ["G'DAY, MATE!", "Welcome party! The local herd brought milkshakes."],
+  "cheese-picnic": ["KIA ORA!", "Dropped right into the herd. Cheese picnic time."],
+  croissant: ["BONJOUR!", "Cheese and croissants. Very civilised."],
+  vineyard: ["OOH LA LA", "Somewhere among the vines. One glass of red, cow-sized."],
+  fondue: ["GRÜEZI!", "Alps behind, fondue in front. Toasty."],
+  "bubble-tea": ["HOME SWEET HOME!", "World tour complete. Bubble tea for the whole herd."],
+  city: ["RUSH HOUR MOO", "Landed somewhere in town and stopped all the traffic."],
+};
+function pickEnding(c: City) {
+  const r = Math.random();
+  if (r < 0.18) return "city";
+  if (c.celebrate === "croissant" && r < 0.5) return "vineyard";
+  return c.celebrate;
+}
 function judge(f: FlightResult): Verdict {
   if (f.outcome === "escaped") return { kind: "escaped", title: "BYE, EARTH", tag: "Too much fart. Escape velocity reached — this cow is now somebody else's problem.", place: "Outer space" };
   const { lat, lon } = f.landing!;
-  const reg = australianRegionAt(lat, lon);
-  if (reg) return { kind: "aus", title: "G'DAY, MATE!", tag: reg === "Mainland Australia" ? "Touchdown in Australia. No passport, no luggage, slight smell." : `Lucky! ${reg} is Australian land. It counts!`, place: reg, region: reg };
+  const T = TGT(), reg = targetRegionAt(T, lat, lon);
+  if (reg) {
+    const ending = pickEnding(st.city), [title, tag0] = ENDINGS[ending] ?? ENDINGS.milkshake;
+    const lucky = T.key === "AU" && reg !== "Mainland Australia" ? ` Lucky: ${reg} counts as Australia!` : "";
+    return { kind: "aus", title, tag: tag0 + lucky, place: reg, region: reg, ending };
+  }
   if (gcDist(lat, lon, st.city.lat, st.city.lon) < 30000) return { kind: "home", title: "BACK ON THE FARM", tag: "That was more of a hiccup. The cow is unimpressed.", place: st.city.name };
-  if (inAntarcticClaim(lat, lon)) return { kind: "antarctic", title: "TECHNICALLY…?", tag: "Australian Antarctic claim. Not counted in v0.1 — the Captain will rule on this.", place: "Antarctica (Australian claim)" };
+  if (inAntarcticClaim(lat, lon)) return { kind: "antarctic", title: "TECHNICALLY…?", tag: "Australian Antarctic claim. Doesn't count. Nice try though.", place: "Antarctica (Australian claim)" };
   const c = countryAt(lat, lon);
+  if (c && c === T.name) return { kind: "country", title: "TECHNICALLY…?", tag: `That's ${c}, but not the part this level is about. Close-ish!`, place: c };
   if (c) return { kind: "country", title: c === "Antarctica" ? "BRRRR." : "WRONG COUNTRY", tag: c === "Antarctica" ? "Penguins 1, Cow 0." : `Landed in ${c}. Right attitude, wrong passport stamp.`, place: c };
   return { kind: "ocean", title: "SPLASH!", tag: `Landed in ${oceanName(lat, lon)}. Moo-ving swim ahead.`, place: oceanName(lat, lon).replace(/^the /, "The ") };
 }
@@ -626,12 +681,19 @@ function onLanded() {
     cow.position.copy(lp);
     if (landPatch) landPatch.visible = true;
     if (v.kind !== "ocean" && v.kind !== "home") {
-      const txt = v.kind === "aus" ? "G'DAY!" : v.kind === "antarctic" ? "BRRR?" : (v.place.length > 9 ? "NOPE." : v.place.toUpperCase());
+      if (v.kind === "aus") {
+      celebrate(lp, v.ending ?? "milkshake");
+      // ease into a level, wider shot so the welcome party and backdrop read
+      const up = lp.clone().normalize(), fwd = st.lastFwd.clone().addScaledVector(up, -st.lastFwd.dot(up)).normalize(), away = up.clone().cross(fwd).normalize();
+      flyTo(() => ({ pos: lp.clone().addScaledVector(away, -0.012).addScaledVector(up, 0.0016), tgt: lp.clone().addScaledVector(up, 0.0013).addScaledVector(away, 0.003), up: up.clone() }), 0.9);
+    }
+    const txt = v.kind === "aus" ? ({ AU: "G'DAY!", NZ: "KIA ORA!", FR: "BONJOUR!", CH: "GRÜEZI!", TW: "HOME!" } as any)[TGT().key] : v.kind === "antarctic" ? "BRRR?" : (v.place.length > 9 ? "NOPE." : v.place.toUpperCase());
       tex("land_sign", signSVG(txt), 400, 300).then((t) => { const sg = sprite(t, 0.0028, 0.75); const fr = enuT(f.landing!.lat, f.landing!.lon); const pp = fr.up.clone().cross(st.lastFwd).normalize(); sg.position.copy(lp).addScaledVector(st.lastFwd, 0.0021).addScaledVector(pp, 0.0032); scene.add(sg); puffs.push({ s: sg, t0: 1e15 }); landSign = sg; });
     }
     const fx = sprite(v.kind === "ocean" ? texCache.splash : texCache.puff, v.kind === "ocean" ? 0.0055 : 0.005, v.kind === "ocean" ? 170 / 256 : 180 / 256, 0.5, 0.15);
     fx.position.copy(lp).addScaledVector(camera.position.clone().sub(lp).normalize(), -0.0015); fx.renderOrder = 7; fx.userData.grow = 0.5; scene.add(fx); puffs.push({ s: fx, t0: performance.now() });
   }
+  if (v.kind === "aus") st.done[st.city.id] = true;
   // record trail
   const key = st.city.id; st.history[key] = st.history[key] ?? [];
   st.attempts[key] = (st.attempts[key] ?? 0) + 1;
@@ -640,10 +702,41 @@ function onLanded() {
   while (st.history[key].length > HIST_MAX) st.history[key].shift();
   save();
 }
+/** Cartoon welcome party. Scenery is a random comedy ending, not the real landing spot. */
+function celebrate(lp: THREE.Vector3, ending: string) {
+  const up = lp.clone().normalize(), fwd = st.lastFwd.clone().addScaledVector(up, -st.lastFwd.dot(up)).normalize(), away = up.clone().cross(fwd).normalize();
+  const put = (t: THREE.Texture, wM: number, aspect: number, rightM: number, awayM: number, order = 7) => {
+    const sp = sprite(t, wM / 1000, aspect); sp.position.copy(lp).addScaledVector(fwd, rightM / 1000).addScaledVector(away, awayM / 1000); sp.renderOrder = order; scene.add(sp); puffs.push({ s: sp, t0: 1e15 }); return sp;
+  };
+  if (ending === "fondue") put(texCache.alps, 520, 0.4, 40, 700, 2);
+  else if (ending === "vineyard") put(texCache.vineyard, 160, 0.4, 10, 90, 2);
+  else if (ending === "city") { put(texCache.city, 220, 0.4, 0, 130, 2); put(texCache.car_a, 4.2, 0.56, -5.5, 7); put(texCache.car_b, 4.2, 0.56, 5.5, 8); put(texCache.car_c, 4.2, 0.56, 0.5, 14); }
+  else { put(texCache.barn, 16, 280 / 320, -30, 45, 3); put(texCache.hay, 2.4, 0.7, 4.5, 10); }
+  put(texCache.friend_a, 3.2, 1, -2.7, 4.5).center.y = 0.19; put(texCache.friend_b, 3.2, 1, 2.9, 5.5).center.y = 0.19;
+  const food = ending === "vineyard" ? "wine" : ending === "city" ? "milkshake" : ending === "croissant" ? "croissant" : ending;
+  const fx = texCache["food_" + food]; if (fx) put(fx, food === "cheese-picnic" || food === "croissant" ? 1.9 : 1.1, food === "cheese-picnic" || food === "croissant" ? 0.64 : (food === "fondue" ? 1 : 1.5), 1.3, -1.6, 9);
+  if (ending === "city") put(texCache.food_milkshake, 1.0, 1.5, -2.6, -1.2, 9);
+}
+/** Along/cross-track miss relative to the great circle from launch site to the target centre. */
+function missReport(f: FlightResult): string {
+  if (!f.landing) return "";
+  const T = TGT(), R = R_EARTH / 1000, c = st.city;
+  const dSL = gcDist(c.lat, c.lon, f.landing.lat, f.landing.lon) / 1000, dSC = gcDist(c.lat, c.lon, T.centre.lat, T.centre.lon) / 1000;
+  const dTh = (bearing(c.lat, c.lon, f.landing.lat, f.landing.lon) - bearing(c.lat, c.lon, T.centre.lat, T.centre.lon)) * Math.PI / 180;
+  const xt = Math.asin(clamp(Math.sin(dSL / R) * Math.sin(dTh), -1, 1)) * R;
+  const at = Math.acos(clamp(Math.cos(dSL / R) / Math.cos(xt / R), -1, 1)) * R * (Math.cos(dTh) < 0 ? -1 : 1);
+  const lng = at - dSC;
+  const p1 = Math.abs(lng) < 50 ? "about the right distance" : `${fmtNum(Math.abs(lng))} km too ${lng > 0 ? "far" : "short"}`;
+  const p2 = Math.abs(xt) < 50 ? "right on the line" : `${fmtNum(Math.abs(xt))} km ${xt > 0 ? "right" : "left"} of the line`;
+  return `${p1} · ${p2} to ${T.name}`;
+}
 function showResults() {
   const f = st.flight!, v = lastVerdict!; st.mode = "results";
   const watched = st.realT;
-  const dAus = f.landing ? distanceToAustralia(f.landing.lat, f.landing.lon) / 1000 : NaN;
+  const dAus = f.landing ? distanceToTarget(TGT(), f.landing.lat, f.landing.lon) / 1000 : NaN;
+  const miss = v.kind !== "aus" && v.kind !== "escaped" ? missReport(f) : "";
+  const idx = TOUR.findIndex((c) => c.id === st.city.id), next = v.kind === "aus" && idx >= 0 ? TOUR[idx + 1] : undefined;
+  const tourDone = st.city.kind === "tour" && TOUR.every((c) => st.done[c.id]);
   const traveled = f.landing ? gcDist(f.launch.lat, f.launch.lon, f.landing.lat, f.landing.lon) / 1000 : NaN;
   const ll = f.landing ? `${Math.abs(f.landing.lat).toFixed(2)}°${f.landing.lat >= 0 ? "N" : "S"}, ${Math.abs(f.landing.lon).toFixed(2)}°${f.landing.lon >= 0 ? "E" : "W"}` : "—";
   $("resC").innerHTML = `<h2>${v.title}</h2><div class="tagline">${v.tag}</div>
@@ -651,15 +744,18 @@ function showResults() {
    <div class="stat"><div class="k">MAX ALTITUDE</div><div class="v">${f.outcome === "escaped" ? "∞ (escaped)" : fmtNum(f.maxAlt / 1000) + " km"}</div></div>
    <div class="stat"><div class="k">SIMULATED FLIGHT TIME</div><div class="v">${f.outcome === "escaped" ? "never lands" : hms(f.flightTime)}</div></div>
    <div class="stat wide"><div class="k">LANDED AT</div><div class="v">${v.place}${f.landing ? ` · <span style="font-weight:500;font-size:14px">${ll}</span>` : ""}</div></div>
-   <div class="stat"><div class="k">TO NEAREST AUSTRALIAN LAND</div><div class="v">${v.kind === "aus" ? "0 km 🎉" : isNaN(dAus) ? "—" : fmtNum(dAus) + " km"}</div></div>
+   <div class="stat"><div class="k">TO NEAREST ${TGT().name.toUpperCase()} LAND</div><div class="v">${v.kind === "aus" ? "0 km 🎉" : isNaN(dAus) ? "—" : fmtNum(dAus) + " km"}</div></div>
    <div class="stat"><div class="k">GROUND DISTANCE FLOWN</div><div class="v">${isNaN(traveled) ? "—" : fmtNum(traveled) + " km"}</div></div>
+   ${miss ? `<div class="stat wide"><div class="k">MISS REPORT</div><div class="v" style="font-size:15px">${miss}</div></div>` : ""}
    <div class="stat wide"><div class="k">THIS FART</div><div class="v" style="font-size:15px">${f.launch.azimuth}° · ${f.launch.elevation}° up · ${(f.launch.dv / 1000).toFixed(3)} km/s <span style="color:${PAL.lav};font-weight:500">(you watched ${watched.toFixed(1)} s)</span></div></div>
   </div>
-  <div class="btns"><button class="b-pink" id="again">TRY AGAIN</button><button class="b-dark" id="cmp">COMPARE 🌏</button></div>
-  <div class="note">Simplified model: round Earth, central gravity, Earth rotation, no air. Flight time is model time; playback was sped up.</div>`;
+  ${tourDone && v.kind === "aus" ? `<div class="tagline" style="color:${PAL.yellow}">🌍 World Tour complete! All five routes flown.</div>` : ""}
+  <div class="btns"><button class="b-pink" id="again">TRY AGAIN</button><button class="b-dark" id="cmp">COMPARE 🌏</button>${next ? `<button class="b-pink" id="nextLv">NEXT ▶</button>` : ""}</div>
+  <div class="note">${v.kind === "aus" ? "Ending scenery is a cartoon, not the real landing spot. " : ""}Simplified model: round Earth, central gravity, Earth rotation, no air. Flight time is model time; playback was sped up.</div>`;
   $("resM").classList.add("on"); $("hud").style.display = "none";
   $("again").onclick = () => backToSetup("cow");
   $("cmp").onclick = () => backToSetup("globe");
+  if (next) $("nextLv").onclick = () => { backToSetup("cow"); chooseCity(next); };
 }
 function backToSetup(view: View) {
   $("resM").classList.remove("on"); $("hud").style.display = "none";
@@ -797,13 +893,17 @@ async function boot() {
   await Promise.all([
     ...poses.map((p) => tex("cow_" + p, cowSVG(p), 512, 512)),
     tex("puff", puffSVG(), 256, 180), tex("splash", splashSVG(), 256, 170), tex("barn", barnSVG(), 320, 280), tex("hay", haySVG(), 200, 140), tex("tuft", tuftSVG(), 120, 80),
-    ...CITIES.map((c) => tex("sign_" + c.id, signSVG(c.name.toUpperCase()), 400, 300)),
+    ...CITIES.map((c) => tex("sign_" + c.id, signSVG(c.signText), 400, 300)),
+    tex("ger", gerSVG(), 320, 220), tex("sheep", sheepSVG(), 200, 160), tex("windmill", windmillSVG(), 240, 400), tex("tree", treeSVG(), 240, 300),
+    tex("alps", alpsSVG(), 1200, 480), tex("vineyard", vineyardSVG(), 1200, 480), tex("city", citySVG(), 1200, 480),
+    tex("car_a", carSVG("#F4A3B8"), 200, 112), tex("car_b", carSVG("#8FD3FF"), 200, 112), tex("car_c", carSVG("#FFE07A"), 200, 112),
+    tex("friend_a", friendCowSVG("happy", "#8B5A3C"), 512, 512), tex("friend_b", friendCowSVG("cheeky", "#C77D4A"), 512, 512),
+    ...["milkshake", "cheese-picnic", "croissant", "fondue", "bubble-tea", "wine"].map((k) => tex("food_" + k, foodSVG(k), 240, 240)),
   ]);
-  (earth.material as THREE.MeshBasicMaterial).map = buildEarthTexture(); (earth.material as THREE.MeshBasicMaterial).needsUpdate = true;
   cow = sprite(texCache.cow_idle, 0.0034, 1, 0.5, 0.19); cow.renderOrder = 8;
   startLabel = labelSprite("", PAL.pink); scene.add(startLabel);
   startDot = dotSprite(PAL.pink, 0.016); scene.add(startDot);
-  ausLabel = labelSprite("AUSTRALIA", PAL.yellow); ausLabel.position.copy(llT(AUSTRALIA_CENTRE.lat, AUSTRALIA_CENTRE.lon, RK + 1)); scene.add(ausLabel);
+  ausLabel = labelSprite("AUSTRALIA", PAL.yellow); scene.add(ausLabel);
   load();
   onResize();
   chooseCity(st.city);
@@ -812,6 +912,6 @@ async function boot() {
   $("legend").style.display = "block";
   $("loading").remove();
   requestAnimationFrame(frame);
-  (window as any).__game = { st, setAim(a: number, e: number, p: number) { st.az = a; st.el = e; st.pw = p; updateAim(); } };
+  (window as any).__game = { st, pick(id: string) { const c = CITIES.find((x) => x.id === id); if (c) chooseCity(c); }, setAim(a: number, e: number, p: number) { st.az = a; st.el = e; st.pw = p; updateAim(); } };
 }
 boot();

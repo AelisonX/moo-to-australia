@@ -19,7 +19,21 @@ Sister game to *MOO TO THE MOON*.
 - Up to six previous trails per launch site stay on the globe in different colours, so you can compare attempts. In globe view, drag to spin and pinch/scroll to zoom.
 - Any Australian land counts: the mainland, Tasmania, the islands, and the external territories (Christmas Island, Cocos (Keeling), Norfolk, Heard & McDonald, Lord Howe, Macquarie, Ashmore & Cartier, Coral Sea). Water does not. The Australian Antarctic claim is… technically… not counted.
 
-Launch sites: Taipei (easiest), Cape Town, London, New York, Bermuda (hardest).
+### World Tour (5 levels)
+
+| # | From | To | Celebration |
+|---|------|----|-------------|
+| 1 | Taiwan farm | Australia | milkshakes with the local herd |
+| 2 | Mongolian steppe | New Zealand | cheese picnic |
+| 3 | Australian farm | France | cheese & croissants (or a vineyard…) |
+| 4 | French farm | Switzerland | fondue in front of the Alps |
+| 5 | New Zealand farm | home to Taiwan | bubble tea |
+
+Landing anywhere on the target country's land clears a level. France = mainland + Corsica; New Zealand = main islands; Australia includes its islands and external territories. Celebration scenery (farm, vineyard, traffic jam) is a random cartoon ending, not a claim about the real spot you hit. After a miss, the results card tells you how far long/short and left/right of the line to the target you landed.
+
+### Classic
+
+Any farm → Australia from Taipei (easiest), Cape Town, London, New York, or Bermuda (hardest).
 
 ## The physics (simplified, but honest)
 
@@ -36,7 +50,7 @@ Fiction: the super-fart, plus a cow that is heat-proof and crash-proof. Please d
 
 ## Validation
 
-`npm run validate` runs 50 checks plus a playability sweep. The current report is in `build/validation-report.txt` once you've run it. The checks cover:
+`npm run validate` runs 66 checks plus a playability sweep. The current report is in `build/validation-report.txt` once you've run it. The checks cover:
 
 - frame round-trips (ECI ↔ ECEF ↔ lat/lon)
 - numerical integrator vs an independent closed-form Kepler solution: 500 random launches, landing points within 48 m, flight times within 1e-8 relative
@@ -45,7 +59,8 @@ Fiction: the super-fart, plus a cow that is heat-proof and crash-proof. Please d
 - escape threshold at √(2μ/R)
 - no accidental satellites
 - inside/outside Australia point tests (islands included)
-- for every launch site, a solution under 2 hours exists, and the numerical simulator confirms it
+- target-country tests for France (mainland vs overseas), Switzerland, Taiwan, New Zealand
+- for every route (5 World Tour levels + 5 classic), a solution under 2 hours exists, and the numerical simulator confirms it
 
 ## Run it locally
 
@@ -61,10 +76,11 @@ npm run validate   # physics + geography checks
 ```
 src/physics.ts   ECI integrator, launch state, landing/apex refinement, escape classification
 src/kepler.ts    closed-form two-body solution (validation + sweeps)
-src/geo.ts       Australian land test, country lookup, distance to nearest Australian land
+src/geo.ts       target-country land tests, country lookup, distance to nearest target land
+src/cities.ts    World Tour levels and classic launch sites
 src/art.ts       cow + props as SVG
 src/game.ts      three.js scene, camera choreography, trails, UI
-src/data/        generated from Natural Earth by tools/build_geo.py
+src/data/        generated from Natural Earth by tools/build_geo.py and tools/build_targets.py
 tests/           validation suite
 docs/            built game (GitHub Pages)
 ```
