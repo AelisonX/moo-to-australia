@@ -5,6 +5,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { simulate, sampleAt, FlightResult, Launch, V3, R_EARTH, OMEGA, llToEcef, enu, ecefToLl, gcDist, bearing } from "./physics";
 import { countryAt, inAntarcticClaim, oceanName, WORLD, TARGETS, targetRegionAt, distanceToTarget, Target } from "./geo";
 import { CITIES, TOUR, CLASSIC, City } from "./cities";
+import * as sfx from "./audio";
 import { cowSVG, puffSVG, splashSVG, barnSVG, haySVG, signSVG, tuftSVG, svgToCanvas, Pose, PAL, POSES, friendCowSVG, gerSVG, sheepSVG, windmillSVG, treeSVG, alpsSVG, vineyardSVG, citySVG, carSVG, foodSVG } from "./art";
 
 // ===================================================================================
@@ -559,6 +560,11 @@ function setView(v: View, dur = 1.1) {
   free = null; st.view = v; $("hint").style.opacity = v === "globe" ? "1" : "0"; $("viewBtn").textContent = v === "cow" ? "🌏 Globe" : "🐄 Cow";
   flyTo(v === "cow" ? cowViewPose : globePose, dur);
 }
+// sound: unlock on the first gesture (browser rule), mute toggle remembered per browser
+const sndBtn = $("sndBtn"); sndBtn.textContent = sfx.isMuted() ? "🔇" : "🔊";
+sndBtn.onclick = () => { sfx.setMuted(!sfx.isMuted()); sndBtn.textContent = sfx.isMuted() ? "🔇" : "🔊"; };
+window.addEventListener("pointerdown", () => sfx.unlock(), { capture: true });
+window.addEventListener("keydown", () => sfx.unlock(), { capture: true });
 $("viewBtn").onclick = () => { if (st.mode === "setup") setView(st.view === "cow" ? "globe" : "cow"); };
 $("infoBtn").onclick = () => $("infoM").classList.add("on");
 $("infoClose").onclick = () => $("infoM").classList.remove("on");
@@ -612,7 +618,7 @@ $("fart").onclick = () => {
 };
 function launchNow() {
   const L: Launch = { lat: st.city.lat, lon: st.city.lon, azimuth: st.az, elevation: st.el, dv: st.pw * 1000 };
-  st.flight = simulate(L);
+  st.flight = simulate(L); sfx.fart(st.pw);
   st.simT = 0; st.realT = 0; st.mode = "flight";
   st.lastFwd.copy(localDir(st.az, 0));
   // move cow into world space (out of the farm group) for flight
@@ -672,6 +678,7 @@ let lastVerdict: Verdict | null = null, landedAt = 0, landPatch: THREE.Mesh | nu
 function onLanded() {
   const f = st.flight!; st.mode = "landed"; landedAt = performance.now();
   const v = judge(f); lastVerdict = v;
+  if (v.kind === "escaped") sfx.whistleAway(); else if (v.kind === "ocean") sfx.splash(); else sfx.boing();
   $("skip").style.display = "none";
   if (f.outcome === "landed") {
     // cow back to "ground" anchoring at the landing point
@@ -753,6 +760,7 @@ function showResults() {
   <div class="btns"><button class="b-pink" id="again">TRY AGAIN</button><button class="b-dark" id="cmp">COMPARE 🌏</button>${next ? `<button class="b-pink" id="nextLv">NEXT ▶</button>` : ""}</div>
   <div class="note">${v.kind === "aus" ? "Ending scenery is a cartoon, not the real landing spot. " : ""}Simplified model: round Earth, central gravity, Earth rotation, no air. Flight time is model time; playback was sped up.</div>`;
   $("resM").classList.add("on"); $("hud").style.display = "none";
+  if (v.kind === "aus") sfx.jingle(); else sfx.wahwah();
   $("again").onclick = () => backToSetup("cow");
   $("cmp").onclick = () => backToSetup("globe");
   if (next) $("nextLv").onclick = () => { backToSetup("cow"); chooseCity(next); };
@@ -793,7 +801,7 @@ function frame(now: number) {
   if (st.mode === "charge" && now >= chargeT0) {
     const t = (now - chargeT0) / 1000;
     if (t < 0.35) setPose("squat");
-    else if (t < 1.05) { if (poseNow !== "strain") setPose("strain"); shake = 0.00006 * Math.min(1, (t - 0.35) * 2); }
+    else if (t < 1.05) { if (poseNow !== "strain") { setPose("strain"); sfx.strain(0.7); } shake = 0.00006 * Math.min(1, (t - 0.35) * 2); }
     else { setPose("poot"); pootEl.classList.add("on"); setTimeout(() => pootEl.classList.remove("on"), 650); launchNow(); }
   }
   // --- flight playback

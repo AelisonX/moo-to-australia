@@ -13,7 +13,7 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Fredoka,system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 button{font-family:inherit;color:inherit;border:0;cursor:pointer}
-.chip{background:rgba(38,42,102,.88);border:2px solid var(--ink);border-radius:999px;padding:8px 14px;font-size:15px;font-weight:600;box-shadow:0 3px 0 var(--ink);min-height:40px}
+.chip{background:rgba(38,42,102,.88);border:2px solid var(--ink);border-radius:999px;padding:8px 12px;font-size:15px;font-weight:600;box-shadow:0 3px 0 var(--ink);min-height:40px}
 .chip:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 #top{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;align-items:center;padding:10px 10px 0;z-index:5;pointer-events:none}
 #top>*{pointer-events:auto}
@@ -91,6 +91,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
   <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · World Tour</small></div>
   <button class="chip" id="cityBtn">From: Taipei ▾</button>
   <button class="chip" id="viewBtn">🌏</button>
+  <button class="chip" id="sndBtn" aria-label="Sound">🔊</button>
   <button class="chip" id="infoBtn">?</button>
 </div>
 <div id="legend"></div>
@@ -129,6 +130,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
     <li><b>Physics (simplified):</b> round Earth, gravity toward the centre (weaker with distance), Earth spinning the whole time, <b>no air</b>. Your cow already moves with the spinning ground before it farts, so "jump and wait for Australia" does not work: jump straight up and you land a little <i>west</i>.</li>
     <li>One fart, no second burn: a cow can't accidentally become a satellite. She either comes back down or escapes Earth (that counts as a loss).</li>
     <li><b>Fiction:</b> super-fart, heat-proof and crash-proof cow. Don't try this with a real cow.</li>
+    <li><b>Sound:</b> music and effects are made live by the browser (no audio files). Tap 🔊 to mute. On iPhone, the silent switch also mutes the game.</li>
     <li>Playback is sped up (shown as ×). "Sim time" is how long the flight lasts in the model; "watched" is real time.</li>
     <li>The Australian Antarctic claim does <i>not</i> count. Technically.</li>
   </ul>
