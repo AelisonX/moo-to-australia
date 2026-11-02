@@ -135,6 +135,6 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
   <div class="note">v0.1 · Sister game to MOO TO THE MOON. Map data: Natural Earth (public domain). Rendering: three.js (MIT). Font: Fredoka (OFL).</div>
   <div class="btns" style="margin-top:12px"><button class="b-pink" id="infoClose">Got it</button></div>
 </div></div>
-<script type="module" src="./game.js"></script>
+<script type="module" src="./game.js" onerror="var l=document.getElementById('loading');if(l)l.textContent='Could not load game.js. If you host this yourself, serve the docs/ folder.';"></script>
 </body>
 </html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>MOO TO AUSTRALIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1B1E4B;--panel:#262A66;--panel2:#30357a;--text:#F3EEFF;--pink:#F4A3B8;--pink2:#E58AA3;--lav:#C9C2EA;--yellow:#FFE07A;--ink:#3a2a30;--mint:#8FD6A8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Fredoka,system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+button{font-family:inherit;color:inherit;border:0;cursor:pointer}
+.chip{background:rgba(38,42,102,.88);border:2px solid var(--ink);border-radius:999px;padding:8px 14px;font-size:15px;font-weight:600;box-shadow:0 3px 0 var(--ink);min-height:40px}
+.chip:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+#top{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;align-items:center;padding:10px 10px 0;z-index:5;pointer-events:none}
+#top>*{pointer-events:auto}
+#brand{font-weight:700;font-size:15px;color:var(--pink);text-shadow:0 2px 0 var(--ink);margin-right:auto;line-height:1.05;pointer-events:none}
+#brand small{display:block;color:var(--lav);font-weight:500;font-size:11px;text-shadow:none}
+#panel{position:fixed;left:0;right:0;bottom:0;z-index:5;background:linear-gradient(180deg,rgba(27,30,75,.0),rgba(27,30,75,.92) 14%);padding:18px 12px calc(12px + env(safe-area-inset-bottom));transition:transform .35s ease}
+#panel.hide{transform:translateY(110%)}
+.inner{max-width:560px;margin:0 auto}
+.row{display:grid;grid-template-columns:86px 1fr auto;align-items:center;gap:8px;margin-bottom:8px}
+.lbl{font-size:12px;color:var(--lav);font-weight:600;letter-spacing:.04em;line-height:1.1}
+.val{font-size:19px;font-weight:700;color:var(--text)}
+.fine{display:flex;gap:6px}
+.fine button{width:44px;height:44px;border-radius:14px;background:var(--panel2);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);font-size:22px;font-weight:700;line-height:1}
+.fine button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:12px;border-radius:8px;background:var(--panel2);border:2px solid var(--ink)}
+input[type=range]::-moz-range-track{height:12px;border-radius:8px;background:var(--panel2);border:2px solid var(--ink)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:var(--pink);border:3px solid var(--ink);margin-top:-11px;box-shadow:0 2px 0 var(--ink)}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--pink);border:3px solid var(--ink)}
+#dirrow{grid-template-columns:86px 1fr auto}
+#dial{width:100%;height:84px;touch-action:none}
+#fart{width:100%;height:64px;border-radius:22px;background:var(--pink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);font-size:26px;font-weight:700;color:var(--ink);letter-spacing:.06em;position:relative;margin-top:4px}
+#fart:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
+#fart .tag{position:absolute;right:12px;top:6px;font-size:10px;font-weight:600;letter-spacing:.02em;background:var(--yellow);border:1.5px solid var(--ink);border-radius:6px;padding:1px 5px}
+#sub{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--lav)}
+#sub button{background:none;color:var(--lav);text-decoration:underline;font-size:12px;padding:6px 2px}
+#hud{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:5;background:rgba(27,30,75,.8);border:2px solid var(--ink);border-radius:16px;padding:8px 14px;font-size:14px;text-align:center;display:none;min-width:250px}
+#hud b{color:var(--yellow);font-size:17px}
+#hud .s{color:var(--lav);font-size:12px}
+#skip{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:6;display:none;background:var(--yellow);color:var(--ink);font-size:18px;padding:12px 28px}
+#poot{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.2);font-size:76px;font-weight:700;color:var(--yellow);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;z-index:6;pointer-events:none;opacity:0;transition:transform .25s cubic-bezier(.2,1.6,.4,1),opacity .25s}
+#poot.on{transform:translate(-50%,-50%) scale(1) rotate(-6deg);opacity:1}
+.modal{position:fixed;inset:0;z-index:10;background:rgba(10,12,40,.55);display:none;align-items:flex-end;justify-content:center;padding:12px}
+.modal.on{display:flex}
+.card{background:var(--panel);border:3px solid var(--ink);border-radius:24px;box-shadow:0 6px 0 var(--ink);width:100%;max-width:520px;padding:18px 18px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;touch-action:pan-y}
+.card h2{margin:0 0 2px;font-size:30px;color:var(--pink);text-shadow:0 2px 0 var(--ink);line-height:1.05}
+.card .tagline{color:var(--lav);font-size:15px;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat{background:var(--bg);border:2px solid var(--ink);border-radius:14px;padding:8px 10px}
+.stat .k{font-size:11px;color:var(--lav);font-weight:600;letter-spacing:.03em}
+.stat .v{font-size:17px;font-weight:700}
+.stat.wide{grid-column:1/-1}
+.btns{display:flex;gap:8px}
+.btns button{flex:1;height:54px;border-radius:18px;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);font-size:18px;font-weight:700}
+.b-pink{background:var(--pink);color:var(--ink)}.b-dark{background:var(--panel2)}
+.note{font-size:11.5px;color:var(--lav);margin-top:10px;line-height:1.35}
+.city{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:var(--bg);border:2px solid var(--ink);border-radius:16px;padding:10px 14px;margin-bottom:8px;min-height:56px}
+.city b{font-size:18px}.city span{display:block;font-size:12px;color:var(--lav)}
+.city .n{font-size:12px;color:var(--yellow);display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}.city .n span{display:inline;color:var(--lav)}.city .n .ok{color:var(--mint);font-size:20px;font-weight:700}.city .n .st{color:var(--yellow)}.city.cur{border-color:var(--pink)}.lhead{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--lav);margin:12px 2px 6px}
+.card p,.card li{font-size:14px;line-height:1.4}
+.card ul{padding-left:18px;margin:6px 0}
+#loading{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--pink);font-weight:600}
+#hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:4;font-size:12px;color:var(--lav);background:rgba(27,30,75,.7);border-radius:999px;padding:4px 10px;pointer-events:none;opacity:0;transition:opacity .5s}
+#legend:empty{display:none!important}#legend{position:fixed;right:10px;top:62px;z-index:4;background:rgba(27,30,75,.75);border:2px solid var(--ink);border-radius:12px;padding:6px 8px;font-size:11px;display:none;max-width:150px}
+#legend div{display:flex;align-items:center;gap:6px;margin:2px 0;white-space:nowrap}
+#legend i{display:inline-block;width:16px;height:4px;border-radius:2px}
+@media (min-width:900px){#panel{left:16px;right:auto;width:520px;bottom:12px;border-radius:24px;background:rgba(27,30,75,.86);border:3px solid var(--ink)}#panel.hide{transform:translateY(130%)}}
+@media (max-height:640px){.row{margin-bottom:4px}#fart{height:54px}#dial{height:70px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading">Warming up the cow…</div>
+<script>
+(function(){
+  function show(msg){var l=document.getElementById("loading");if(l){l.style.cssText+=";flex-direction:column;gap:10px;padding:24px;text-align:center;font-size:16px";l.innerHTML="<div>Moo. Something went wrong.</div><div style='font-size:13px;color:#C9C2EA;max-width:420px'>"+String(msg).replace(/</g,"&lt;")+"</div><button onclick='location.reload()' style='margin-top:8px;padding:10px 18px;border-radius:14px;background:#F4A3B8;color:#3a2a30;font-weight:700;border:2px solid #3a2a30'>Reload</button>";}}
+  window.addEventListener("error",function(e){show((e.message||"Error")+(e.filename?" @ "+e.filename.split("/").pop()+":"+e.lineno:""));});
+  window.addEventListener("unhandledrejection",function(e){show("Error: "+(e.reason&&e.reason.message||e.reason));});
+  setTimeout(function(){var l=document.getElementById("loading");if(l&&l.textContent.indexOf("Warming")===0)l.textContent="Still warming up… (slow network? the game is ~2 MB)";},15000);
+  try{var c=document.createElement("canvas");if(!(c.getContext("webgl2")||c.getContext("webgl")))show("This browser has WebGL turned off, and the globe needs it.");}catch(e){}
+})();
+</script>
+<script nomodule>document.getElementById("loading").textContent="This browser is too old for the game (needs ES modules).";</script>
+<div id="top">
+  <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · World Tour</small></div>
+  <button class="chip" id="cityBtn">From: Taipei ▾</button>
+  <button class="chip" id="viewBtn">🌏</button>
+  <button class="chip" id="infoBtn">?</button>
+</div>
+<div id="legend"></div>
+<div id="hint">Drag to spin · pinch to zoom</div>
+<div id="hud"></div>
+<button class="chip" id="skip">SKIP ⏭</button>
+<div id="poot">POOT!</div>
+<div id="panel"><div class="inner">
+  <div class="row" id="dirrow">
+    <div><div class="lbl">DIRECTION</div><div class="val" id="azv">0°</div></div>
+    <svg id="dial" viewBox="0 0 200 84"></svg>
+    <div class="fine"><button data-k="az" data-d="-1">‹</button><button data-k="az" data-d="1">›</button></div>
+  </div>
+  <div class="row">
+    <div><div class="lbl">ANGLE</div><div class="val" id="elv">45°</div></div>
+    <input type="range" id="el" min="2" max="88" step="0.5">
+    <div class="fine"><button data-k="el" data-d="-0.5">−</button><button data-k="el" data-d="0.5">+</button></div>
+  </div>
+  <div class="row">
+    <div><div class="lbl">FART POWER</div><div class="val" id="pwv">6.000</div></div>
+    <input type="range" id="pw" min="0.5" max="11.5" step="0.005">
+    <div class="fine"><button data-k="pw" data-d="-0.005">−</button><button data-k="pw" data-d="0.005">+</button></div>
+  </div>
+  <button id="fart">FART!</button>
+  <div id="sub"><span id="att">Attempt 1</span><span>km/s, relative to the ground</span><button id="clearBtn">Clear trails</button></div>
+</div></div>
+
+<div class="modal" id="resM"><div class="card" id="resC"></div></div>
+<div class="modal" id="cityM"><div class="card"><h2>Pick a route</h2><div class="tagline">Same cow, same fart, five countries.</div><div id="cityList"></div></div></div>
+<div class="modal" id="infoM"><div class="card">
+  <h2>How this works</h2>
+  <div class="tagline">Cow fiction, honest physics.</div>
+  <ul>
+    <li><b>World Tour:</b> five routes (Taiwan → Australia → … → home to Taiwan). Land anywhere on the target country's land to clear a level. Water doesn't count.</li><li><b>Australia</b> includes Tasmania, the islands and external territories (Christmas, Cocos, Norfolk, Heard &amp; McDonald, Lord Howe, Macquarie…). France means mainland France + Corsica; New Zealand means the main islands.</li><li>Landing celebrations (farm, vineyard, traffic jam) are cartoon endings, not the real spot you hit.</li>
+    <li><b>Controls:</b> direction (compass, 0° = north), angle above the horizon, fart power (km/s, relative to the ground). No aim line: learn from your trails.</li>
+    <li><b>Physics (simplified):</b> round Earth, gravity toward the centre (weaker with distance), Earth spinning the whole time, <b>no air</b>. Your cow already moves with the spinning ground before it farts, so "jump and wait for Australia" does not work: jump straight up and you land a little <i>west</i>.</li>
+    <li>One fart, no second burn: a cow can't accidentally become a satellite. She either comes back down or escapes Earth (that counts as a loss).</li>
+    <li><b>Fiction:</b> super-fart, heat-proof and crash-proof cow. Don't try this with a real cow.</li>
+    <li>Playback is sped up (shown as ×). "Sim time" is how long the flight lasts in the model; "watched" is real time.</li>
+    <li>The Australian Antarctic claim does <i>not</i> count. Technically.</li>
+  </ul>
+  <div class="note">v0.1 · Sister game to MOO TO THE MOON. Map data: Natural Earth (public domain). Rendering: three.js (MIT). Font: Fredoka (OFL).</div>
+  <div class="btns" style="margin-top:12px"><button class="b-pink" id="infoClose">Got it</button></div>
+</div></div>
+<script type="module" src="./game.js" onerror="var l=document.getElementById('loading');if(l)l.textContent='Could not load game.js. If you host this yourself, serve the docs/ folder.';"></script>
+</body>
+</html>

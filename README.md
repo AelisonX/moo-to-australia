@@ -78,6 +78,7 @@ src/physics.ts   ECI integrator, launch state, landing/apex refinement, escape c
 src/kepler.ts    closed-form two-body solution (validation + sweeps)
 src/geo.ts       target-country land tests, country lookup, distance to nearest target land
 src/cities.ts    World Tour levels and classic launch sites
+src/index.html   page shell (copied to docs/ by the build)
 src/art.ts       cow + props as SVG
 src/game.ts      three.js scene, camera choreography, trails, UI
 src/data/        generated from Natural Earth by tools/build_geo.py and tools/build_targets.py

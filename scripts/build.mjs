@@ -6,6 +6,6 @@ await build({
   entryPoints: ["src/game.ts"], bundle: true, format: "esm", minify: true, target: "es2020",
   outfile: "docs/game.js", legalComments: "eof", logLevel: "warning",
 });
-copyFileSync("index.html", "docs/index.html");
+copyFileSync("src/index.html", "docs/index.html");
 writeFileSync("docs/.nojekyll", "");
 console.log("built docs/index.html + docs/game.js");
