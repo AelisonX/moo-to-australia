@@ -2,11 +2,11 @@ import * as THREE from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { simulate, sampleAt, FlightResult, Launch, V3, R_EARTH, OMEGA, llToEcef, enu, ecefToLl, gcDist, bearing } from "./physics";
+import { simulate, sampleAt, pathLength, FlightResult, Launch, V3, R_EARTH, OMEGA, llToEcef, enu, ecefToLl, gcDist, bearing } from "./physics";
 import { countryAt, inAntarcticClaim, oceanName, WORLD, TARGETS, targetRegionAt, distanceToTarget, Target } from "./geo";
-import { CITIES, TOUR, CLASSIC, City } from "./cities";
+import { CITIES, DESTINATIONS, CLASSIC, City, Ending } from "./cities";
 import * as sfx from "./audio";
-import { cowSVG, puffSVG, splashSVG, barnSVG, haySVG, signSVG, tuftSVG, svgToCanvas, Pose, PAL, POSES, friendCowSVG, gerSVG, sheepSVG, windmillSVG, treeSVG, alpsSVG, vineyardSVG, citySVG, carSVG, foodSVG } from "./art";
+import { cowSVG, puffSVG, splashSVG, barnSVG, haySVG, signSVG, tuftSVG, svgToCanvas, Pose, PAL, POSES, friendCowSVG, windmillSVG, destFoodSVG, backdropSVG } from "./art";
 
 // ===================================================================================
 // Units in the scene: kilometres. Physics in metres. Scene axes: physics ECEF (x,y,z)
@@ -198,7 +198,7 @@ function localDir(az: number, el: number) {
   const a = az * Math.PI / 180, e = el * Math.PI / 180, F = siteFrame;
   return F.e.clone().multiplyScalar(Math.cos(e) * Math.sin(a)).addScaledVector(F.n, Math.cos(e) * Math.cos(a)).addScaledVector(F.up, Math.sin(e));
 }
-const SCENE_GROUND: Record<string, [string, string]> = { farm: ["#7CC56F", "#8FD6A8"], "tw-farm": ["#6FC26A", "#8FD6A8"], steppe: ["#B9CF6E", "#CBD98F"], "au-farm": ["#A9C56A", "#C2CF7E"], "fr-farm": ["#78C36C", "#93D3A0"], "nz-farm": ["#68BE6E", "#8FD6A8"] };
+const SCENE_GROUND: Record<string, [string, string]> = { farm: ["#7CC56F", "#8FD6A8"], "au-farm": ["#A9C56A", "#C2CF7E"] };
 function buildFarm(F = siteFrame, tint?: THREE.Color): THREE.Mesh {
   const gc = SCENE_GROUND[st.city.scene] ?? SCENE_GROUND.farm;
   const RINGS = 70, SEG = 72, MAXD = 140; // km
@@ -302,17 +302,10 @@ function setupSite() {
   props.length = 0;
   const add = (s: THREE.Sprite, e: number, n: number) => { placeLocal(s, e, n); site.add(s); props.push(s); };
   const sc = c.scene;
-  if (sc === "steppe") {
-    add(sprite(texCache.ger, 0.011, 220 / 320), -30, 26); add(sprite(texCache.ger, 0.008, 220 / 320), 24, 40);
-    for (let i = 0; i < 3; i++) add(sprite(texCache.sheep, 0.0016, 0.8), 14 + i * 3, -12 + i * 2);
-  } else {
-    add(sprite(texCache.barn, 0.016, 280 / 320), -38, 30);
-    add(sprite(texCache.hay, 0.0024, 0.7), 9, -7);
-    add(sprite(texCache.hay, 0.0024, 0.7), 11, -4.5);
-    if (sc === "au-farm") add(sprite(texCache.windmill, 0.007, 400 / 240), 30, 34);
-    if (sc === "fr-farm" || sc === "tw-farm") { add(sprite(texCache.tree, 0.007, 300 / 240), 26, 30); add(sprite(texCache.tree, 0.006, 300 / 240), -12, 46); }
-    if (sc === "nz-farm") for (let i = 0; i < 5; i++) add(sprite(texCache.sheep, 0.0016, 0.8), 12 + i * 3.2, 14 - i * 4);
-  }
+  add(sprite(texCache.barn, 0.016, 280 / 320), -38, 30);
+  add(sprite(texCache.hay, 0.0024, 0.7), 9, -7);
+  add(sprite(texCache.hay, 0.0024, 0.7), 11, -4.5);
+  if (sc === "au-farm") add(sprite(texCache.windmill, 0.007, 400 / 240), 30, 34);
   let s = 3; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 70; i++) { const d = 4 + r() * 70, a = r() * Math.PI * 2; add(sprite(texCache.tuft, 0.0009 + r() * 0.0007, 80 / 120), Math.cos(a) * d, Math.sin(a) * d); }
   if (sign) site.remove(sign);
@@ -572,22 +565,21 @@ $("clearBtn").onclick = () => { st.history[st.city.id] = []; st.attempts[st.city
 $("cityBtn").onclick = () => { if (st.mode !== "setup") return; renderCityList(); $("cityM").classList.add("on"); };
 $("cityM").addEventListener("click", (e) => { if (e.target === $("cityM")) $("cityM").classList.remove("on"); });
 $("infoM").addEventListener("click", (e) => { if (e.target === $("infoM")) $("infoM").classList.remove("on"); });
-const STARS: Record<string, number> = { t1: 1, t2: 3, t3: 3, t4: 1, t5: 2 };
 function renderCityList() {
   const L = $("cityList"); L.innerHTML = "";
   const head = (t: string) => { const h = document.createElement("div"); h.className = "lhead"; h.textContent = t; L.appendChild(h); };
   const row = (c: City) => {
     const b = document.createElement("button"); b.className = "city" + (c.id === st.city.id ? " cur" : "");
     const n = (st.history[c.id] ?? []).length, T = TARGETS[c.target];
-    const title = c.kind === "tour" ? `${c.level}. ${c.country} → ${T.name}` : `${c.name} → ${T.name}`;
-    const right = (st.done[c.id] ? `<span class="ok">✓</span>` : "") + (c.kind === "tour" ? `<span class="st">${"★".repeat(STARS[c.id] ?? 1)}</span>` : "") + (n ? `<span>${n} trail${n > 1 ? "s" : ""}</span>` : "");
+    const title = c.kind === "dest" ? T.name : `${c.name} → ${T.name}`;
+    const right = (st.done[c.id] ? `<span class="ok">✓</span>` : "") + (c.stars ? `<span class="st">${"★".repeat(c.stars)}</span>` : "") + (n ? `<span>${n} trail${n > 1 ? "s" : ""}</span>` : "");
     b.innerHTML = `<div><b>${title}</b><span>${c.blurb}</span></div><div class="n">${right}</div>`;
     b.onclick = () => { $("cityM").classList.remove("on"); chooseCity(c); };
     L.appendChild(b);
   };
-  const doneN = TOUR.filter((c) => st.done[c.id]).length;
-  head(`🌍 WORLD TOUR · ${doneN}/${TOUR.length}`); TOUR.forEach(row);
-  head("🐄 CLASSIC · ANY FARM → AUSTRALIA"); CLASSIC.forEach(row);
+  const doneN = DESTINATIONS.filter((c) => st.done[c.id]).length;
+  head(`📍 DESTINATIONS FROM THE HOME FARM · ${doneN}/${DESTINATIONS.length}`); DESTINATIONS.forEach(row);
+  head("🐄 CLASSIC · FLY TO AUSTRALIA"); CLASSIC.forEach(row);
 }
 function ballpark(c: City) {
   const T = TARGETS[c.target], psi = gcDist(c.lat, c.lon, T.centre.lat, T.centre.lon) / R_EARTH, sn = Math.sin(psi / 2);
@@ -596,7 +588,7 @@ function ballpark(c: City) {
 }
 function chooseCity(c: City) {
   st.city = c; const T = TARGETS[c.target];
-  $("cityBtn").textContent = c.kind === "tour" ? `Lv${c.level}: ${c.country} → ${T.name} ▾` : `${c.name} → ${T.name} ▾`;
+  $("cityBtn").textContent = c.kind === "dest" ? `To ${T.name} ▾` : `${c.name} → ${T.name} ▾`;
   const sset = settings[c.id];
   if (sset) { st.az = sset.az; st.el = sset.el; st.pw = sset.pw; }
   else { st.az = Math.round(bearing(c.lat, c.lon, T.centre.lat, T.centre.lon)); st.el = 45; st.pw = ballpark(c); }
@@ -641,36 +633,22 @@ function downsampleFull(f: FlightResult) { return f.samples.map((s) => T(s.ecef)
 $("skip").onclick = () => { if (st.mode === "flight") { st.simT = st.flight!.flightTime; } };
 
 // ---------------------------------------------------------------- landing & results
-interface Verdict { kind: "aus" | "home" | "ocean" | "country" | "antarctic" | "escaped"; title: string; tag: string; place: string; region?: string; ending?: string }
-const ENDINGS: Record<string, [string, string]> = {
-  milkshake: ["G'DAY, MATE!", "Welcome party! The local herd brought milkshakes."],
-  "cheese-picnic": ["KIA ORA!", "Dropped right into the herd. Cheese picnic time."],
-  croissant: ["BONJOUR!", "Cheese and croissants. Very civilised."],
-  vineyard: ["OOH LA LA", "Somewhere among the vines. One glass of red, cow-sized."],
-  fondue: ["GRÜEZI!", "Alps behind, fondue in front. Toasty."],
-  "bubble-tea": ["HOME SWEET HOME!", "World tour complete. Bubble tea for the whole herd."],
-  city: ["RUSH HOUR MOO", "Landed somewhere in town and stopped all the traffic."],
-};
-function pickEnding(c: City) {
-  const r = Math.random();
-  if (r < 0.18) return "city";
-  if (c.celebrate === "croissant" && r < 0.5) return "vineyard";
-  return c.celebrate;
-}
+interface Verdict { kind: "aus" | "home" | "ocean" | "country" | "antarctic" | "escaped"; title: string; tag: string; place: string; region?: string; ending?: Ending }
 function judge(f: FlightResult): Verdict {
   if (f.outcome === "escaped") return { kind: "escaped", title: "BYE, EARTH", tag: "Too much fart. Escape velocity reached — this cow is now somebody else's problem.", place: "Outer space" };
   const { lat, lon } = f.landing!;
   const T = TGT(), reg = targetRegionAt(T, lat, lon);
   if (reg) {
-    const ending = pickEnding(st.city), [title, tag0] = ENDINGS[ending] ?? ENDINGS.milkshake;
+    const e = st.city.ending;
     const lucky = T.key === "AU" && reg !== "Mainland Australia" ? ` Lucky: ${reg} counts as Australia!` : "";
-    return { kind: "aus", title, tag: tag0 + lucky, place: reg, region: reg, ending };
+    return { kind: "aus", title: e.title, tag: e.tag + lucky, place: reg, region: reg, ending: e };
   }
   if (gcDist(lat, lon, st.city.lat, st.city.lon) < 30000) return { kind: "home", title: "BACK ON THE FARM", tag: "That was more of a hiccup. The cow is unimpressed.", place: st.city.name };
-  if (inAntarcticClaim(lat, lon)) return { kind: "antarctic", title: "TECHNICALLY…?", tag: "Australian Antarctic claim. Doesn't count. Nice try though.", place: "Antarctica (Australian claim)" };
+  if (T.key === "AU" && inAntarcticClaim(lat, lon)) return { kind: "antarctic", title: "TECHNICALLY…?", tag: "Australian Antarctic claim. Doesn't count. Nice try though.", place: "Antarctica (Australian claim)" };
   const c = countryAt(lat, lon);
-  if (c && c === T.name) return { kind: "country", title: "TECHNICALLY…?", tag: `That's ${c}, but not the part this level is about. Close-ish!`, place: c };
-  if (c) return { kind: "country", title: c === "Antarctica" ? "BRRRR." : "WRONG COUNTRY", tag: c === "Antarctica" ? "Penguins 1, Cow 0." : `Landed in ${c}. Right attitude, wrong passport stamp.`, place: c };
+  if (c && c === T.name) return { kind: "country", title: "UNEXPECTED STOP!", tag: `That's part of ${c}, just not the part this trip is about. So close!`, place: c };
+  if (c === "Antarctica") return { kind: "country", title: "BRRRR.", tag: "Penguins 1, Cow 0.", place: c };
+  if (c) { const t = Math.random() < 0.5 ? "DIFFERENT DESTINATION!" : "UNEXPECTED STOP!"; return { kind: "country", title: t, tag: `Landed in ${c}. Not the plan, but the locals seem friendly.`, place: c }; }
   return { kind: "ocean", title: "SPLASH!", tag: `Landed in ${oceanName(lat, lon)}. Moo-ving swim ahead.`, place: oceanName(lat, lon).replace(/^the /, "The ") };
 }
 const hms = (s: number) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60); return h ? `${h}h ${String(m).padStart(2, "0")}m ${String(x).padStart(2, "0")}s` : `${m}m ${String(x).padStart(2, "0")}s`; };
@@ -689,12 +667,12 @@ function onLanded() {
     if (landPatch) landPatch.visible = true;
     if (v.kind !== "ocean" && v.kind !== "home") {
       if (v.kind === "aus") {
-      celebrate(lp, v.ending ?? "milkshake");
+      celebrate(lp, v.ending ?? st.city.ending);
       // ease into a level, wider shot so the welcome party and backdrop read
       const up = lp.clone().normalize(), fwd = st.lastFwd.clone().addScaledVector(up, -st.lastFwd.dot(up)).normalize(), away = up.clone().cross(fwd).normalize();
       flyTo(() => ({ pos: lp.clone().addScaledVector(away, -0.012).addScaledVector(up, 0.0016), tgt: lp.clone().addScaledVector(up, 0.0013).addScaledVector(away, 0.003), up: up.clone() }), 0.9);
     }
-    const txt = v.kind === "aus" ? ({ AU: "G'DAY!", NZ: "KIA ORA!", FR: "BONJOUR!", CH: "GRÜEZI!", TW: "HOME!" } as any)[TGT().key] : v.kind === "antarctic" ? "BRRR?" : (v.place.length > 9 ? "NOPE." : v.place.toUpperCase());
+    const txt = v.kind === "aus" ? ({ AU: "G'DAY!", NZ: "KIA ORA!", FR: "BONJOUR!", JP: "WELCOME!", BR: "OLÁ!", CA: "HELLO!" } as any)[TGT().key] : v.kind === "antarctic" ? "BRRR?" : (v.place.length > 9 ? "OOPS!" : v.place.toUpperCase());
       tex("land_sign", signSVG(txt), 400, 300).then((t) => { const sg = sprite(t, 0.0028, 0.75); const fr = enuT(f.landing!.lat, f.landing!.lon); const pp = fr.up.clone().cross(st.lastFwd).normalize(); sg.position.copy(lp).addScaledVector(st.lastFwd, 0.0021).addScaledVector(pp, 0.0032); scene.add(sg); puffs.push({ s: sg, t0: 1e15 }); landSign = sg; });
     }
     const fx = sprite(v.kind === "ocean" ? texCache.splash : texCache.puff, v.kind === "ocean" ? 0.0055 : 0.005, v.kind === "ocean" ? 170 / 256 : 180 / 256, 0.5, 0.15);
@@ -709,20 +687,24 @@ function onLanded() {
   while (st.history[key].length > HIST_MAX) st.history[key].shift();
   save();
 }
-/** Cartoon welcome party. Scenery is a random comedy ending, not the real landing spot. */
-function celebrate(lp: THREE.Vector3, ending: string) {
+/** Cartoon welcome party (comedy, not a claim about the real landing spot). */
+const dancers: { s: THREE.Sprite; ph: number; cy: number }[] = [];
+function celebrate(lp: THREE.Vector3, e: Ending) {
   const up = lp.clone().normalize(), fwd = st.lastFwd.clone().addScaledVector(up, -st.lastFwd.dot(up)).normalize(), away = up.clone().cross(fwd).normalize();
   const put = (t: THREE.Texture, wM: number, aspect: number, rightM: number, awayM: number, order = 7) => {
     const sp = sprite(t, wM / 1000, aspect); sp.position.copy(lp).addScaledVector(fwd, rightM / 1000).addScaledVector(away, awayM / 1000); sp.renderOrder = order; scene.add(sp); puffs.push({ s: sp, t0: 1e15 }); return sp;
   };
-  if (ending === "fondue") put(texCache.alps, 520, 0.4, 40, 700, 2);
-  else if (ending === "vineyard") put(texCache.vineyard, 160, 0.4, 10, 90, 2);
-  else if (ending === "city") { put(texCache.city, 220, 0.4, 0, 130, 2); put(texCache.car_a, 4.2, 0.56, -5.5, 7); put(texCache.car_b, 4.2, 0.56, 5.5, 8); put(texCache.car_c, 4.2, 0.56, 0.5, 14); }
-  else { put(texCache.barn, 16, 280 / 320, -30, 45, 3); put(texCache.hay, 2.4, 0.7, 4.5, 10); }
-  put(texCache.friend_a, 3.2, 1, -2.7, 4.5).center.y = 0.19; put(texCache.friend_b, 3.2, 1, 2.9, 5.5).center.y = 0.19;
-  const food = ending === "vineyard" ? "wine" : ending === "city" ? "milkshake" : ending === "croissant" ? "croissant" : ending;
-  const fx = texCache["food_" + food]; if (fx) put(fx, food === "cheese-picnic" || food === "croissant" ? 1.9 : 1.1, food === "cheese-picnic" || food === "croissant" ? 0.64 : (food === "fondue" ? 1 : 1.5), 1.3, -1.6, 9);
-  if (ending === "city") put(texCache.food_milkshake, 1.0, 1.5, -2.6, -1.2, 9);
+  const BD: Record<string, [number, number, number]> = { hills: [260, 0, 220], mountain: [520, 40, 650], vineyard: [300, 10, 320], palms: [190, 0, 210], maple: [190, 0, 210] }; // width, right, away (m)
+  if (e.backdrop === "barn") { put(texCache.barn, 16, 280 / 320, -30, 45, 3); put(texCache.hay, 2.4, 0.7, 4.5, 10); }
+  else { const b = BD[e.backdrop]; put(texCache["bd_" + e.backdrop], b[0], 0.4, b[1], b[2], 2); }
+  const fa = put(texCache.friend_a, 3.2, 1, -2.7, 4.5), fb = put(texCache.friend_b, 3.2, 1, 2.9, 5.5);
+  fa.center.y = fb.center.y = 0.19;
+  dancers.length = 0;
+  if (e.dance) { dancers.push({ s: fa, ph: 0, cy: 0.19 }, { s: fb, ph: 1.7, cy: 0.19 }, { s: cow, ph: 0.8, cy: 0.19 }); }
+  const AS: Record<string, [number, number]> = { cheese: [1.9, 0.64], croissant: [1.9, 0.64], pancakes: [1.6, 0.83], corn: [1.2, 1], matcha: [0.9, 1.5], milkshake: [1.0, 1.5], grape: [0.9, 1.5] };
+  const f = AS[e.food]; put(texCache["df_" + e.food], f[0], f[1], 1.3, -1.6, 9);
+  if (e.food === "croissant") { put(texCache.df_cheese, 1.6, 0.64, -1.6, -1.0, 9); put(texCache.df_grape, 0.85, 1.5, 2.6, -0.8, 9); }
+  if (e.food === "corn") put(texCache.df_corn, 1.0, 1, -1.8, -1.2, 9);
 }
 /** Along/cross-track miss relative to the great circle from launch site to the target centre. */
 function missReport(f: FlightResult): string {
@@ -742,8 +724,8 @@ function showResults() {
   const watched = st.realT;
   const dAus = f.landing ? distanceToTarget(TGT(), f.landing.lat, f.landing.lon) / 1000 : NaN;
   const miss = v.kind !== "aus" && v.kind !== "escaped" ? missReport(f) : "";
-  const idx = TOUR.findIndex((c) => c.id === st.city.id), next = v.kind === "aus" && idx >= 0 ? TOUR[idx + 1] : undefined;
-  const tourDone = st.city.kind === "tour" && TOUR.every((c) => st.done[c.id]);
+  const idx = DESTINATIONS.findIndex((c) => c.id === st.city.id), next = v.kind === "aus" && idx >= 0 ? DESTINATIONS.slice(idx + 1).find((c) => !st.done[c.id]) ?? DESTINATIONS[idx + 1] : undefined;
+  const tourDone = st.city.kind === "dest" && DESTINATIONS.every((c) => st.done[c.id]);
   const traveled = f.landing ? gcDist(f.launch.lat, f.launch.lon, f.landing.lat, f.landing.lon) / 1000 : NaN;
   const ll = f.landing ? `${Math.abs(f.landing.lat).toFixed(2)}°${f.landing.lat >= 0 ? "N" : "S"}, ${Math.abs(f.landing.lon).toFixed(2)}°${f.landing.lon >= 0 ? "E" : "W"}` : "—";
   $("resC").innerHTML = `<h2>${v.title}</h2><div class="tagline">${v.tag}</div>
@@ -752,11 +734,11 @@ function showResults() {
    <div class="stat"><div class="k">SIMULATED FLIGHT TIME</div><div class="v">${f.outcome === "escaped" ? "never lands" : hms(f.flightTime)}</div></div>
    <div class="stat wide"><div class="k">LANDED AT</div><div class="v">${v.place}${f.landing ? ` · <span style="font-weight:500;font-size:14px">${ll}</span>` : ""}</div></div>
    <div class="stat"><div class="k">TO NEAREST ${TGT().name.toUpperCase()} LAND</div><div class="v">${v.kind === "aus" ? "0 km 🎉" : isNaN(dAus) ? "—" : fmtNum(dAus) + " km"}</div></div>
-   <div class="stat"><div class="k">GROUND DISTANCE FLOWN</div><div class="v">${isNaN(traveled) ? "—" : fmtNum(traveled) + " km"}</div></div>
+   <div class="stat"><div class="k">PATH FLOWN</div><div class="v">${f.outcome === "escaped" ? "—" : fmtNum(pathLength(f) / 1000) + " km"}</div></div>
    ${miss ? `<div class="stat wide"><div class="k">MISS REPORT</div><div class="v" style="font-size:15px">${miss}</div></div>` : ""}
    <div class="stat wide"><div class="k">THIS FART</div><div class="v" style="font-size:15px">${f.launch.azimuth}° · ${f.launch.elevation}° up · ${(f.launch.dv / 1000).toFixed(3)} km/s <span style="color:${PAL.lav};font-weight:500">(you watched ${watched.toFixed(1)} s)</span></div></div>
   </div>
-  ${tourDone && v.kind === "aus" ? `<div class="tagline" style="color:${PAL.yellow}">🌍 World Tour complete! All five routes flown.</div>` : ""}
+  ${tourDone && v.kind === "aus" ? `<div class="tagline" style="color:${PAL.yellow}">🌍 All ${DESTINATIONS.length} destinations reached!</div>` : ""}
   <div class="btns"><button class="b-pink" id="again">TRY AGAIN</button><button class="b-dark" id="cmp">COMPARE 🌏</button>${next ? `<button class="b-pink" id="nextLv">NEXT ▶</button>` : ""}</div>
   <div class="note">${v.kind === "aus" ? "Ending scenery is a cartoon, not the real landing spot. " : ""}Simplified model: round Earth, central gravity, Earth rotation, no air. Flight time is model time; playback was sped up.</div>`;
   $("resM").classList.add("on"); $("hud").style.display = "none";
@@ -771,6 +753,7 @@ function backToSetup(view: View) {
   for (const p of puffs) p.s.parent?.remove(p.s); puffs.length = 0;
   if (landPatch) { scene.remove(landPatch); landPatch.geometry.dispose(); landPatch = null; }
   if (landSign) { scene.remove(landSign); landSign = null; }
+  dancers.length = 0;
   scene.remove(cow); resetCow(); aimArrow.visible = true; if (headingLine) headingLine.visible = true;
   rebuildTrails(); updateAttempt();
   st.mode = "setup"; $("panel").classList.remove("hide"); $("legend").style.display = "block";
@@ -832,6 +815,11 @@ function frame(now: number) {
     if (st.simT >= f.flightTime) onLanded();
   } else if (st.mode === "landed") {
     if (now - landedAt > 1100) showResults();
+  }
+  // --- dance party (Brazil): bounce + sway
+  if ((st.mode === "landed" || st.mode === "results") && dancers.length) {
+    const tt = now / 1000;
+    for (const d of dancers) { d.s.center.y = d.cy - 0.08 * Math.abs(Math.sin(tt * 5 + d.ph)); d.s.material.rotation = Math.sin(tt * 2.5 + d.ph) * 0.18; }
   }
   // --- expression director (setup idle life + in-flight moods)
   if (st.mode === "setup") {
@@ -902,11 +890,10 @@ async function boot() {
     ...poses.map((p) => tex("cow_" + p, cowSVG(p), 512, 512)),
     tex("puff", puffSVG(), 256, 180), tex("splash", splashSVG(), 256, 170), tex("barn", barnSVG(), 320, 280), tex("hay", haySVG(), 200, 140), tex("tuft", tuftSVG(), 120, 80),
     ...CITIES.map((c) => tex("sign_" + c.id, signSVG(c.signText), 400, 300)),
-    tex("ger", gerSVG(), 320, 220), tex("sheep", sheepSVG(), 200, 160), tex("windmill", windmillSVG(), 240, 400), tex("tree", treeSVG(), 240, 300),
-    tex("alps", alpsSVG(), 1200, 480), tex("vineyard", vineyardSVG(), 1200, 480), tex("city", citySVG(), 1200, 480),
-    tex("car_a", carSVG("#F4A3B8"), 200, 112), tex("car_b", carSVG("#8FD3FF"), 200, 112), tex("car_c", carSVG("#FFE07A"), 200, 112),
+    tex("windmill", windmillSVG(), 240, 400),
+    ...["hills", "mountain", "vineyard", "palms", "maple"].map((k) => tex("bd_" + k, backdropSVG(k), 1200, 480)),
     tex("friend_a", friendCowSVG("happy", "#8B5A3C"), 512, 512), tex("friend_b", friendCowSVG("cheeky", "#C77D4A"), 512, 512),
-    ...["milkshake", "cheese-picnic", "croissant", "fondue", "bubble-tea", "wine"].map((k) => tex("food_" + k, foodSVG(k), 240, 240)),
+    ...["cheese", "matcha", "croissant", "grape", "corn", "pancakes", "milkshake"].map((k) => tex("df_" + k, destFoodSVG(k), 240, 240)),
   ]);
   cow = sprite(texCache.cow_idle, 0.0034, 1, 0.5, 0.19); cow.renderOrder = 8;
   startLabel = labelSprite("", PAL.pink); scene.add(startLabel);

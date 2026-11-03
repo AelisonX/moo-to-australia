@@ -1,5 +1,5 @@
 // Validation suite. Run: node build/validate.mjs  (bundled by esbuild)
-import { simulate, initialState, MU, R_EARTH, OMEGA, dot, norm, cross, ecefToLl, llToEcef, eciToEcef, ecefToEci, gcDist, Launch, V3, sub } from "../src/physics";
+import { pathLength, simulate, initialState, MU, R_EARTH, OMEGA, dot, norm, cross, ecefToLl, llToEcef, eciToEcef, ecefToEci, gcDist, Launch, V3, sub } from "../src/physics";
 import { keplerLanding } from "../src/kepler";
 import { australianRegionAt, countryAt, distanceToAustralia, inAntarcticClaim, AU_REGIONS, TARGETS, targetRegionAt } from "../src/geo";
 import { CITIES } from "../src/cities";
@@ -129,6 +129,15 @@ const fmt = (x: number, d = 3) => x.toExponential(d);
   check("Trail endpoint equals reported landing point", gcDist(ll.lat, ll.lon, r1.landing!.lat, r1.landing!.lon) < 1e-3);
 }
 
+{
+  const pole = simulate({ lat: 90, lon: 0, azimuth: 0, elevation: 90, dv: 3000 });
+  const pl = pathLength(pole);
+  check("Path flown: straight up and down at the pole = 2 × apex", Math.abs(pl - 2 * pole.maxAlt) / pl < 1e-3, `${(pl / 1000).toFixed(1)} km vs ${(2 * pole.maxAlt / 1000).toFixed(1)} km`);
+  const lf = simulate({ lat: 51.5, lon: -0.13, azimuth: 80, elevation: 20, dv: 7600 });
+  const g = gcDist(51.5, -0.13, lf.landing!.lat, lf.landing!.lon);
+  check("Path flown is longer than the ground distance between launch and landing", pathLength(lf) > g, `${(pathLength(lf) / 1000).toFixed(0)} km path vs ${(g / 1000).toFixed(0)} km ground`);
+}
+
 // ---------- 6. Australia land test ----------
 {
   const inside: [string, number, number][] = [["Alice Springs", -23.70, 133.88], ["Hobart", -42.88, 147.33], ["Perth", -31.95, 115.86], ["Brisbane", -27.47, 153.03],
@@ -145,7 +154,9 @@ const fmt = (x: number, d = 3) => x.toExponential(d);
 
 {
   const T2: [string, keyof typeof TARGETS, number, number, boolean][] = [["Paris", "FR", 48.86, 2.35, true], ["Corsica", "FR", 42.15, 9.1, true], ["French Guiana (not metro France)", "FR", 4.9, -52.3, false],
-    ["Bern", "CH", 46.95, 7.45, true], ["Lake Geneva (water)", "CH", 46.45, 6.55, false], ["Taipei", "TW", 25.03, 121.56, true], ["Kaohsiung", "TW", 22.63, 120.30, true], ["Taiwan Strait (sea)", "TW", 24.3, 119.6, false],
+    ["Tokyo", "JP", 35.68, 139.69, true], ["Sapporo", "JP", 43.06, 141.35, true], ["Naha (Okinawa)", "JP", 26.21, 127.68, true], ["Sea of Japan", "JP", 39.5, 134.0, false],
+    ["Brasília", "BR", -15.79, -47.88, true], ["Manaus", "BR", -3.12, -60.02, true], ["Buenos Aires (not Brazil)", "BR", -34.6, -58.38, false],
+    ["Toronto", "CA", 43.65, -79.38, true], ["Vancouver", "CA", 49.28, -123.12, true], ["Hudson Bay (water)", "CA", 60.0, -86.0, false], ["Seattle (not Canada)", "CA", 47.61, -122.33, false],
     ["Auckland", "NZ", -36.85, 174.76, true], ["Christchurch", "NZ", -43.53, 172.64, true], ["Cook Strait (sea)", "NZ", -41.2, 174.5, false]];
   for (const [n, k, la, lo, want] of T2) { const got = !!targetRegionAt(TARGETS[k], la, lo); check(`${TARGETS[k].name} target test: ${n}`, got === want, got ? "inside" : "outside"); }
 }
@@ -176,7 +187,7 @@ const sweep: string[] = [];
     if (!best) { check(`${c.name}: a normal-hop solution exists`, false); continue; }
     const f = simulate(best.L);
     const reg = f.landing ? targetRegionAt(TG, f.landing.lat, f.landing.lon) : null;
-    check(`${c.name} → ${TG.name}: a ≤2 h solution exists and the numeric sim confirms it`, !!reg,
+    check(`${c.kind === "dest" ? "Home farm" : c.name} → ${TG.name}: a ≤2 h solution exists and the numeric sim confirms it`, !!reg,
       `az ${best.L.azimuth}°, el ${best.L.elevation}°, ${(best.L.dv / 1000).toFixed(2)} km/s → ${reg ?? "MISS"}, ${(f.flightTime / 60).toFixed(1)} min, apex ${(f.maxAlt / 1000).toFixed(0)} km`);
     let lo = Infinity, hi = -Infinity;
     for (let dv = best.L.dv - 3000; dv <= best.L.dv + 3000; dv += 2) {
@@ -184,7 +195,7 @@ const sweep: string[] = [];
       if (k.landing && !k.escaped && k.flightTime! <= HOP && targetRegionAt(TG, k.landing.lat, k.landing.lon) === MAIN) { lo = Math.min(lo, dv); hi = Math.max(hi, dv); }
     }
     const regs = Object.entries(byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(", ");
-    const s = `${c.name} → ${TG.name}: ${okHop + okLob}/${total} grid settings land in target (${(100 * (okHop + okLob) / total).toFixed(2)}%) — ${okHop} normal hops (≤2 h), ${okLob} high lobs (>2 h). ` +
+    const s = `${c.kind === "dest" ? "Home farm" : c.name} → ${TG.name}: ${okHop + okLob}/${total} grid settings land in target (${(100 * (okHop + okLob) / total).toFixed(2)}%) — ${okHop} normal hops (≤2 h), ${okLob} high lobs (>2 h). ` +
       `Example hop: az ${best.L.azimuth}°, el ${best.L.elevation}°, ${(best.L.dv / 1000).toFixed(2)} km/s, ${(best.tf / 60).toFixed(0)} min; main-land power window at that aim ≈ ${((hi - lo) / 1000).toFixed(3)} km/s wide. ` +
       `Fastest hop: ${(fastest!.tf / 60).toFixed(0)} min (az ${fastest!.L.azimuth}°, el ${fastest!.L.elevation}°, ${(fastest!.L.dv / 1000).toFixed(2)} km/s). By region: ${regs}. [${((Date.now() - t0) / 1000).toFixed(1)} s]`;
     sweep.push(s); console.log("  " + s);

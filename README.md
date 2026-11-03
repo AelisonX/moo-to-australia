@@ -19,17 +19,21 @@ Sister game to *MOO TO THE MOON*.
 - Up to six previous trails per launch site stay on the globe in different colours, so you can compare attempts. In globe view, drag to spin and pinch/scroll to zoom.
 - Any Australian land counts: the mainland, Tasmania, the islands, and the external territories (Christmas Island, Cocos (Keeling), Norfolk, Heard & McDonald, Lord Howe, Macquarie, Ashmore & Cartier, Coral Sea). Water does not. The Australian Antarctic claim is… technically… not counted.
 
-### World Tour (5 levels)
+### Destinations
 
-| # | From | To | Celebration |
-|---|------|----|-------------|
-| 1 | Taiwan farm | Australia | milkshakes with the local herd |
-| 2 | Mongolian steppe | New Zealand | cheese picnic |
-| 3 | Australian farm | France | cheese & croissants (or a vineyard…) |
-| 4 | French farm | Switzerland | fondue in front of the Alps |
-| 5 | New Zealand farm | home to Taiwan | bubble tea |
+An Australian dairy cow farts her way from one (fictional) home farm in Australia to herds around the world. Listed easiest → hardest, measured by the share of direction/angle/power settings that arrive within 2 hours of flight:
 
-Landing anywhere on the target country's land clears a level. France = mainland + Corsica; New Zealand = main islands; Australia includes its islands and external territories. Celebration scenery (farm, vineyard, traffic jam) is a random cartoon ending, not a claim about the real spot you hit. After a miss, the results card tells you how far long/short and left/right of the line to the target you landed.
+| Destination | Welcome party | Difficulty |
+|---|---|---|
+| Canada | pancakes with maple syrup under the maple trees | ★ |
+| Brazil | grilled-corn party, the herd dances | ★ |
+| New Zealand | cheese with the herd on the grass | ★★ |
+| Japan | matcha ice cream at the farm | ★★★ |
+| France | croissants, cheese and grape juice | ★★★ |
+
+Landing anywhere on the destination's land counts: France = mainland + Corsica; New Zealand = main islands; Japan = home islands + Okinawa; Brazil and Canada = the whole country. Landing elsewhere is a "Different destination!" or "Unexpected stop!". Welcome parties are cartoon endings (not the real spot you hit, and not farming advice). After a miss, the results card shows how far long/short and left/right of the line to the destination you landed, plus the length of the path actually flown.
+
+Destinations are configured in one place (`src/cities.ts`: name, land target, blurb, ending); land polygons come from `tools/build_targets.py`.
 
 ### Classic
 
@@ -50,7 +54,7 @@ Fiction: the super-fart, plus a cow that is heat-proof and crash-proof. Please d
 
 ## Validation
 
-`npm run validate` runs 66 checks plus a playability sweep. The current report is in `build/validation-report.txt` once you've run it. The checks cover:
+`npm run validate` runs 74 checks plus a playability sweep. The current report is in `build/validation-report.txt` once you've run it. The checks cover:
 
 - frame round-trips (ECI ↔ ECEF ↔ lat/lon)
 - numerical integrator vs an independent closed-form Kepler solution: 500 random launches, landing points within 48 m, flight times within 1e-8 relative
@@ -60,7 +64,7 @@ Fiction: the super-fart, plus a cow that is heat-proof and crash-proof. Please d
 - no accidental satellites
 - inside/outside Australia point tests (islands included)
 - target-country tests for France (mainland vs overseas), Switzerland, Taiwan, New Zealand
-- for every route (5 World Tour levels + 5 classic), a solution under 2 hours exists, and the numerical simulator confirms it
+- for every route (5 destinations + 5 classic), a solution under 2 hours exists, and the numerical simulator confirms it
 
 ## Run it locally
 
@@ -77,7 +81,7 @@ npm run validate   # physics + geography checks
 src/physics.ts   ECI integrator, launch state, landing/apex refinement, escape classification
 src/kepler.ts    closed-form two-body solution (validation + sweeps)
 src/geo.ts       target-country land tests, country lookup, distance to nearest target land
-src/cities.ts    World Tour levels and classic launch sites
+src/cities.ts    destinations (one config entry each) and classic launch sites
 src/index.html   page shell (copied to docs/ by the build)
 src/audio.ts     music + sound effects, synthesised live with Web Audio (no audio files)
 src/art.ts       cow + props as SVG

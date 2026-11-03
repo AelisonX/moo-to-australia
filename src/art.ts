@@ -268,3 +268,47 @@ export function foodSVG(kind: string): string {
   }
   return "";
 }
+
+// ---------------------------------------------------------------- Destinations kit (cartoon endings)
+export function destFoodSVG(kind: string): string {
+  switch (kind) {
+    case "cheese": return foodSVG("cheese-picnic");
+    case "milkshake": return foodSVG("milkshake");
+    case "croissant": return foodSVG("croissant");
+    case "matcha": return svg("0 0 80 120", 160, 240, `<path d="M22,58 L40,116 L58,58 Z" fill="#E9A957" ${O}/><path d="M28,70 l20,20 M36,62 l16,16 M26,82 l12,12" stroke="#C98A3E" stroke-width="2.5"/>
+<path d="M18,58 c-6,-16 6,-24 14,-20 c-2,-14 18,-22 26,-8 c10,-2 16,10 8,18 c6,4 4,12 -4,12 z" fill="#9CCB6B" ${O}/><path d="M34,30 c2,-10 10,-14 12,-24 c4,8 2,18 -6,24" fill="#9CCB6B" ${O}/><path d="M30,48 q8,-6 18,-2" stroke="#fff" stroke-width="3" opacity=".7" fill="none"/>`);
+    case "corn": return svg("0 0 100 100", 200, 200, `<path d="M60,96 L46,62" stroke="#A86B3C" stroke-width="7" stroke-linecap="round"/>
+<path d="M30,56 C20,36 30,8 48,6 C66,8 72,34 62,56 C54,70 38,70 30,56 Z" fill="#F2C95C" ${O}/>${[[38, 22], [50, 18], [44, 32], [56, 30], [38, 42], [50, 44], [44, 54], [58, 44]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#C98A3E" opacity=".7"/>`).join("")}
+<path d="M40,30 l14,-6 M36,46 l20,-4" stroke="#7A4A2A" stroke-width="3" opacity=".6"/><path d="M30,56 C12,52 6,34 14,22 C22,40 30,46 38,60 Z M62,56 C80,50 86,32 78,22 C70,40 62,48 54,60 Z" fill="#7CC56F" ${O}/>`);
+    case "pancakes": return svg("0 0 120 100", 240, 200, `<ellipse cx="60" cy="88" rx="54" ry="9" fill="#fff" ${O}/>
+${[74, 62, 50, 38].map((y) => `<path d="M14,${y} q46,-10 92,0 v8 q-46,10 -92,0 z" fill="#E9A957" ${O}/>`).join("")}
+<path d="M16,36 q44,-12 88,0 q-8,10 -10,26 q-4,-14 -12,-14 q-6,22 -12,0 q-10,-6 -20,0 q-4,14 -10,-2 q-10,-4 -24,-10 z" fill="#B5652A" stroke="${PAL.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="50" y="22" width="18" height="10" rx="2" fill="#FFE07A" ${O}/>`);
+    case "grape": return svg("0 0 80 120", 160, 240, `<path d="M50,0 L42,30" stroke="#F4A3B8" stroke-width="6" stroke-linecap="round"/><path d="M16,30 h48 l-6,82 h-36 z" fill="#B57BD6" fill-opacity=".85" ${O}/>
+<path d="M14,30 h52" stroke="${PAL.ink}" stroke-width="4" stroke-linecap="round"/>${[[30, 60], [42, 66], [36, 78], [48, 82]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#7A3B8F" opacity=".7"/>`).join("")}<path d="M24,44 v24" stroke="#fff" stroke-width="3" opacity=".6"/>`);
+  }
+  return "";
+}
+export function backdropSVG(kind: string): string {
+  switch (kind) {
+    case "hills": return svg("0 0 400 160", 1200, 480, `<path d="M0,160 V96 Q70,48 150,90 Q220,40 300,84 Q350,60 400,80 V160 Z" fill="#7CC56F" ${O}/><path d="M0,160 V122 Q90,92 190,118 Q290,96 400,120 V160 Z" fill="#5FB36B" ${O}/>
+<path d="M250,84 h28 v-14 l-14,-10 l-14,10 z" fill="#D9576B" ${O}/>${[[60, 104], [84, 110], [120, 100]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" fill="#fff" stroke="${PAL.ink}" stroke-width="2"/>`).join("")}`);
+    case "mountain": return svg("0 0 400 160", 1200, 480, `<path d="M70,160 L200,30 L330,160 Z" fill="#8E9BD6" ${O}/><path d="M168,62 L200,30 L232,62 L220,56 L210,66 L200,56 L190,66 L180,56 Z" fill="#fff" ${O}/>
+<path d="M0,160 V124 Q100,104 200,126 Q300,104 400,122 V160 Z" fill="#7CC56F" ${O}/>${[[40, 120], [340, 118], [372, 124]].map(([x, y]) => `<path d="M${x},${y + 30} v-18" stroke="#A86B3C" stroke-width="5"/><circle cx="${x}" cy="${y}" r="16" fill="#F7B9C8" ${O}/>`).join("")}`);
+    case "vineyard": return vineyardSVG().replace('<path d="M300,60 v-26 h40 v26 M296,36 l24,-16 l24,16" fill="#FFF8F2" stroke="#3a2a30" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>', "");
+    case "palms": {
+      const palm = (x: number, h: number) => `<path d="M${x},160 q${-8},-${h / 2} ${4},-${h}" stroke="#A86B3C" stroke-width="9" fill="none" stroke-linecap="round"/>` +
+        [-70, -35, 0, 35, 70, 110, -110].map((a) => `<path d="M${x + 4},${160 - h} q${Math.sin(a * Math.PI / 180) * 30},${-Math.cos(a * Math.PI / 180) * 10 - 6} ${Math.sin(a * Math.PI / 180) * 44},${Math.abs(Math.sin(a * Math.PI / 180)) * 18 - Math.cos(a * Math.PI / 180) * 26}" stroke="#3F9E52" stroke-width="10" fill="none" stroke-linecap="round"/>`).join("");
+      const lights = Array.from({ length: 11 }, (_, i) => `<circle cx="${30 + i * 34}" cy="${46 + Math.sin(i * 0.9) * 8}" r="6" fill="${["#FFE07A", "#F4A3B8", "#8FD3FF", "#B9F18C"][i % 4]}" ${O}/>`).join("");
+      return svg("0 0 400 160", 1200, 480, `<path d="M0,160 V130 Q200,112 400,130 V160 Z" fill="#E9C98A" ${O}/>${palm(40, 120)}${palm(360, 130)}${palm(300, 90)}
+<path d="M20,40 Q200,70 380,40" stroke="${PAL.ink}" stroke-width="2.5" fill="none"/>${lights}<text x="150" y="105" font-family="Arial" font-weight="900" font-size="34" fill="#FFE07A" stroke="${PAL.ink}" stroke-width="2" paint-order="stroke">♪ ♫ ♪</text>`);
+    }
+    case "maple": {
+      const tree = (x: number, s: number, c: string) => `<path d="M${x},160 v-${40 * s}" stroke="#7A4A2A" stroke-width="${8 * s}"/><circle cx="${x}" cy="${160 - 62 * s}" r="${34 * s}" fill="${c}" ${O}/><circle cx="${x - 22 * s}" cy="${160 - 48 * s}" r="${22 * s}" fill="${c}" ${O}/><circle cx="${x + 24 * s}" cy="${160 - 46 * s}" r="${22 * s}" fill="${c}" ${O}/>`;
+      const leaf = (x: number, y: number, r: number) => `<path transform="translate(${x},${y}) rotate(${r}) scale(.5)" d="M0,-20 l5,10 10,-4 -3,11 10,3 -12,8 2,8 -12,-4 0,10 h-0 l0,-10 -12,4 2,-8 -12,-8 10,-3 -3,-11 10,4 z" fill="#E0503A" stroke="${PAL.ink}" stroke-width="3"/>`;
+      return svg("0 0 400 160", 1200, 480, `<path d="M0,160 V128 Q200,110 400,128 V160 Z" fill="#8FC46B" ${O}/>${tree(60, 1.2, "#E0503A")}${tree(150, 0.9, "#F08A3A")}${tree(270, 1.1, "#E0503A")}${tree(350, 0.8, "#F2B33D")}${leaf(110, 40, 20)}${leaf(210, 26, -30)}${leaf(320, 54, 50)}${leaf(30, 70, -10)}`);
+    }
+    case "barn": return svg("0 0 400 160", 1200, 480, `<path d="M0,160 V120 Q200,100 400,120 V160 Z" fill="#7CC56F" ${O}/>`) ;
+  }
+  return "";
+}

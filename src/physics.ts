@@ -216,3 +216,13 @@ export function sampleAt(f: FlightResult, t: number): { ecef: V3; alt: number; i
   const p = add(a.ecef, mul(sub(b.ecef, a.ecef), u));
   return { ecef: p, alt: a.alt + (b.alt - a.alt) * u, idx: lo };
 }
+
+/**
+ * Distance the cow actually travelled along her trajectory (m), summed over the integrated samples.
+ * Measured in the Earth-fixed frame, i.e. the path you see drawn over the map (not the straight
+ * launch-to-landing line, and not playback time). Groundwork for per-destination leaderboards.
+ */
+export function pathLength(f: FlightResult): number {
+  let d = 0; for (let i = 1; i < f.samples.length; i++) d += norm(sub(f.samples[i].ecef, f.samples[i - 1].ecef));
+  return d;
+}

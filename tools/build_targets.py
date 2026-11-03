@@ -18,8 +18,9 @@ def dp(pts, tol):
 T = {  # key: (NE ADMIN name, bbox filter lon0,lat0,lon1,lat1 or None, label)
   'NZ': ('New Zealand', (165,-48,179.9,-33.5), 'New Zealand'),
   'FR': ('France', (-6,41,10,51.5), 'France'),
-  'CH': ('Switzerland', None, 'Switzerland'),
-  'TW': ('Taiwan', None, 'Taiwan'),
+  'JP': ('Japan', (122,24,146.5,46), 'Japan'),
+  'BR': ('Brazil', None, 'Brazil'),
+  'CA': ('Canada', None, 'Canada'),
 }
 d=json.load(open(c10)); res={}
 for k,(adm,bb,label) in T.items():
@@ -29,7 +30,9 @@ for k,(adm,bb,label) in T.items():
         for p in polys(f['geometry']):
             xs=[a for a,_ in p[0]]; ys=[b for _,b in p[0]]; cx,cy=sum(xs)/len(xs),sum(ys)/len(ys)
             if bb and not (bb[0]<=cx<=bb[2] and bb[1]<=cy<=bb[3]): continue
-            ps.append([q(dp(r,0.003),4) for r in p])
+            tol = 0.02 if k=='CA' else 0.005
+            rings=[q(dp(r,tol),4) for r in p]
+            if len(rings[0])>=4: ps.append(rings)
     res[k]={'name':label,'polys':ps}
     print(k,label,len(ps),'polys',sum(len(r) for p in ps for r in p),'pts')
 json.dump(res,open(out+'/targets.json','w'),separators=(',',':'))

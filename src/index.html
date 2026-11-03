@@ -88,7 +88,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
 </script>
 <script nomodule>document.getElementById("loading").textContent="This browser is too old for the game (needs ES modules).";</script>
 <div id="top">
-  <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · World Tour</small></div>
+  <div id="brand">MOO TO AUSTRALIA<small>一屁抵澳 · Destinations</small></div>
   <button class="chip" id="cityBtn">From: Taipei ▾</button>
   <button class="chip" id="viewBtn">🌏</button>
   <button class="chip" id="sndBtn" aria-label="Sound">🔊</button>
@@ -120,12 +120,14 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bac
 </div></div>
 
 <div class="modal" id="resM"><div class="card" id="resC"></div></div>
-<div class="modal" id="cityM"><div class="card"><h2>Pick a route</h2><div class="tagline">Same cow, same fart, five countries.</div><div id="cityList"></div></div></div>
+<div class="modal" id="cityM"><div class="card"><h2>Destinations</h2><div class="tagline">One Aussie cow, one home farm, herds waiting around the world.</div><div id="cityList"></div></div></div>
 <div class="modal" id="infoM"><div class="card">
   <h2>How this works</h2>
   <div class="tagline">Cow fiction, honest physics.</div>
   <ul>
-    <li><b>World Tour:</b> five routes (Taiwan → Australia → … → home to Taiwan). Land anywhere on the target country's land to clear a level. Water doesn't count.</li><li><b>Australia</b> includes Tasmania, the islands and external territories (Christmas, Cocos, Norfolk, Heard &amp; McDonald, Lord Howe, Macquarie…). France means mainland France + Corsica; New Zealand means the main islands.</li><li>Landing celebrations (farm, vineyard, traffic jam) are cartoon endings, not the real spot you hit.</li>
+    <li><b>Destinations:</b> an Australian dairy cow farts her way from the home farm to herds around the world: Canada, Brazil, New Zealand, Japan, France. Land anywhere on that destination's land to arrive. Water doesn't count.</li>
+    <li>France means mainland France + Corsica; New Zealand the main islands; Japan the home islands + Okinawa. <b>Classic</b> mode flies to Australia (incl. its islands and external territories).</li>
+    <li>Welcome parties and their snacks are cartoon endings, not the real spot you hit (and not farming advice).</li>
     <li><b>Controls:</b> direction (compass, 0° = north), angle above the horizon, fart power (km/s, relative to the ground). No aim line: learn from your trails.</li>
     <li><b>Physics (simplified):</b> round Earth, gravity toward the centre (weaker with distance), Earth spinning the whole time, <b>no air</b>. Your cow already moves with the spinning ground before it farts, so "jump and wait for Australia" does not work: jump straight up and you land a little <i>west</i>.</li>
     <li>One fart, no second burn: a cow can't accidentally become a satellite. She either comes back down or escapes Earth (that counts as a loss).</li>

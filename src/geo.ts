@@ -91,7 +91,7 @@ export function oceanName(lat: number, lon: number): string {
 
 
 // ---------------------------------------------------------------- level targets
-export type TargetKey = "AU" | "NZ" | "FR" | "CH" | "TW";
+export type TargetKey = "AU" | "NZ" | "FR" | "JP" | "BR" | "CA";
 export interface Target { key: TargetKey; name: string; regions: Region[]; centre: { lat: number; lon: number }; pts: { v: V3; lat: number; lon: number }[] }
 function mkTarget(key: TargetKey, name: string, regions: Region[]): Target {
   const pts: { v: V3; lat: number; lon: number }[] = [];
@@ -100,13 +100,17 @@ function mkTarget(key: TargetKey, name: string, regions: Region[]): Target {
   let x = 0, y = 0; for (const [lo, la] of best![0]) { x += lo; y += la; }
   return { key, name, regions, centre: { lat: y / best![0].length, lon: x / best![0].length }, pts };
 }
+// Valid landing land per target. Australia: mainland, Tasmania, islands & external territories (10m map units).
+// Others come from tools/build_targets.py (see the bbox filters there: metro France + Corsica, NZ main islands, Japan's home islands + Okinawa).
+const TD = targetData as Record<string, { name: string; polys: Poly[] }>;
+const fromData = (k: TargetKey) => mkTarget(k, TD[k].name, [{ name: TD[k].name, polys: TD[k].polys, bbox: TD[k].polys.map(bboxOf) }]);
 export const TARGETS: Record<TargetKey, Target> = {
   AU: { ...mkTarget("AU", "Australia", AU_REGIONS), centre: AUSTRALIA_CENTRE },
-  NZ: mkTarget("NZ", "New Zealand", [{ name: "New Zealand", polys: (targetData as any).NZ.polys, bbox: (targetData as any).NZ.polys.map(bboxOf) }]),
-  FR: mkTarget("FR", "France", [{ name: "France", polys: (targetData as any).FR.polys, bbox: (targetData as any).FR.polys.map(bboxOf) }]),
-  CH: mkTarget("CH", "Switzerland", [{ name: "Switzerland", polys: (targetData as any).CH.polys, bbox: (targetData as any).CH.polys.map(bboxOf) }]),
-  TW: mkTarget("TW", "Taiwan", [{ name: "Taiwan", polys: (targetData as any).TW.polys, bbox: (targetData as any).TW.polys.map(bboxOf) }]),
+  NZ: fromData("NZ"), FR: fromData("FR"), JP: fromData("JP"), BR: fromData("BR"), CA: fromData("CA"),
 };
+// framing centres (mainland-ish), used only for camera & the compass hint
+TARGETS.JP.centre = { lat: 36.5, lon: 138.5 }; TARGETS.CA.centre = { lat: 56, lon: -100 }; TARGETS.FR.centre = { lat: 46.6, lon: 2.4 };
+TARGETS.BR.centre = { lat: -10.5, lon: -52 }; TARGETS.NZ.centre = { lat: -41.5, lon: 173 };
 /** Which region of the target (if any) contains this point. */
 export function targetRegionAt(t: Target, lat: number, lon: number): string | null {
   for (const r of t.regions) for (let i = 0; i < r.polys.length; i++) if (inPoly(lon, lat, r.polys[i], r.bbox[i])) return r.name;
