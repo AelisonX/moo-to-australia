@@ -1,6 +1,6 @@
 ![MOO TO AUSTRALIA — One fart. One giant leap Down Under.](assets/moo-to-australia-banner.png)
 
-# MOO TO AUSTRALIA · 一屁抵澳
+# MOO TO AUSTRALIA
 
 **One fart. One giant leap Down Under.**
 
